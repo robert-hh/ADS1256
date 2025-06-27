@@ -33,13 +33,17 @@ It can be configured, but refuses to work. The polling driver works.~~
 
 ## Constructor
 
-### ADS1256 = ADS1256(spi, cs, drdy)
-### ADS1255 = ADS1255(spi, cs, drdy)
+### ads1256 = ADS1256(spi, cs, drdy)
+### ads1255 = ADS1255(spi, cs, drdy)
+### ads1256 = ADS1256P(spi, cs, drdy)
+### ads1255 = ADS1255P(spi, cs, drdy)
 
 This is the interface constructor. spi must be a SPI object, cs and drdy are the pin objects
 of the GPIO pins used for the respective signals.
 When calling the constructor, a default channel 0 will be defined with AIN0 and AINCOM as inputs,
 a gain of 1 and a rate of 1000.
+The classes with the "P" suffix uses polling to detect the DRDY pulse, otherwise IRQ
+is used.
 
 
 ## Methods
@@ -48,15 +52,16 @@ a gain of 1 and a rate of 1000.
 
 Define ro change a logical channel used to read the data. This channel is not identical to
 the ADC input pins. It defines the configuration of input pins, gain and sampling rate.
-id: A number used to identify the channel. It can be any number.
-ainp: The positive input of the channel. Valid values are 0-7 for ADS1256 and 0-1 for ADS1255 or 8
-for the AINCOM signal.
-ainn: The negative input of the channel. Valid values are 0-7 for ADS1256 and 0-1 for ADS1255 or 8
-for the AINCOM signal.
-gain: The gain set for the channel.
-rate: The sampling rate of the channel.
 
-### ads1256.read(channel, [buffer])
+- id: A token used to identify the channel. It can be anything that can be used as key to a dictionary, e.g. a number or a string.
+- ainp: The positive input of the channel. Valid values are 0-7 for ADS1256 and 0-1 for ADS1255 or 8
+for the AINCOM signal.
+- ainn: The negative input of the channel. Valid values are 0-7 for ADS1256 and 0-1 for ADS1255 or 8
+for the AINCOM signal.
+- gain: The gain set for the channel.
+- rate: The sampling rate of the channel.
+
+### ads1256.read(channel [, buffer])
 
 Read and ADC value with the configuration set for the channel. If buffer is supplied,
 it will be filled with data in the read continuous mode until the buffer is filled.
@@ -148,7 +153,7 @@ with the respective class name ADS1256 or ADS1255 or instance name.
 ### Others
 
     AINCOM = 8
-    NUM_INPUTS = 8
+    NUM_INPUTS = 8 /ADS1256) or 2 (ADS1255)
     SELFCAL_GAIN = 1
     SELFCAL_OFFSET = 2
 

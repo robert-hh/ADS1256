@@ -157,32 +157,17 @@ class ADS1256:
         self.__drdy = True
 
     def _wait_for_drdy(self):
-        # # Set up the trigger for conversion enable.
-        # self.__drdy = False
-        # self.drdy.irq(trigger=Pin.IRQ_FALLING, handler=self._drdy_cb)
-        # # Wait about 1 second for the DRDY event
-        # for _ in range(20000):
-        #     if self.__drdy is True:
-        #         break
-        #     time.sleep_us(50)
-        # else:
-        #     self.__drdy = False
-        #     self.data.irq(handler=None)
-        #     raise OSError("Sensor does not respond")
-        drdy = self.drdy
-        # wait for DRDY being high
-        start = time.ticks_ms()
-        while time.ticks_diff(time.ticks_ms(), start) < 1000:
-            if drdy():
-                break
-        else:
-            raise OSError("No DRDY pulse found")
-        # wait for DRDY getting low
+        # Set up the trigger for conversion enable.
+        self.__drdy = False
+        self.drdy.irq(trigger=Pin.IRQ_FALLING, handler=self._drdy_cb)
+        # Wait about 1 second for the DRDY event
         for _ in range(20000):
-            if not drdy():
+            if self.__drdy is True:
                 break
             time.sleep_us(50)
         else:
+            self.__drdy = False
+            self.drdy.irq(handler=None)
             raise OSError("Sensor does not respond")
 
     # read a single value or a set of values from a channel, which
@@ -236,16 +221,18 @@ class ADS1256:
         if channel not in self.channel_table.keys():
             raise ValueError("channel not defined")
         # set the mux, gain and rate in one transfer
+        config_new = self.channel_table[channel]
+        self.write_reg(REG_MUX, config_new)
+        # Check the need for calibration
         if self.previous_channel is not None:
             config_old = self.channel_table[previous_channel]
-            config_new = self.channel_table[channel]
-            self.write_reg(REG_MUX, config_new)
-            self.previous_channel = channel
-            # perform calibration if needed
             cal_mode = (config_new[1] != config_old[1]) | ((config_new[2] != config_old[2]) << 1)
-            self.calibration(cal_mode)
-        # Wait for the actual cycle to finish. May not be needed.
-        self._wait_for_drdy()
+        else:
+            # The set-up after reset may not match the first used configuration,
+            # so do a full calibration.
+            cal_mode = SELFCAL_GAIN | SELFCAL_OFFSET
+        self.calibration(cal_mode)
+        self.previous_channel = channel
 
     # define or redefine a logical channel
     def channel(self, channel, ainp, ainn=AINCOM, gain=None, rate=None):
@@ -302,5 +289,28 @@ class ADS1256:
 
 
 class ADS1255(ADS1256):
+
+    NUM_INPUTS = 2
+
+class ADS1256P(ADS1256):
+
+    def _wait_for_drdy(self):
+        drdy = self.drdy
+        # wait for DRDY being high
+        start = time.ticks_ms()
+        while time.ticks_diff(time.ticks_ms(), start) < 1000:
+            if drdy():
+                break
+        else:
+            raise OSError("No DRDY pulse found")
+        # wait for DRDY getting low
+        for _ in range(20000):
+            if not drdy():
+                break
+            time.sleep_us(50)
+        else:
+            raise OSError("Sensor does not respond")
+
+class ADS1255P(ADS1256P):
 
     NUM_INPUTS = 2
