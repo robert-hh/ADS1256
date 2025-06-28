@@ -38,11 +38,11 @@ It can be configured, but refuses to work. The polling driver works.~~
 ### ads1256 = ADS1256P(spi, cs, drdy)
 ### ads1255 = ADS1255P(spi, cs, drdy)
 
-This is the interface constructor. spi must be a SPI object, cs and drdy are the pin objects
-of the GPIO pins used for the respective signals.
+This is the interface constructor. spi must be a SPI object configured for phase=1 and polarity=0.
+cs and drdy are the pin objects of the GPIO pins used for the respective signals.
 When calling the constructor, a default channel 0 will be defined with AIN0 and AINCOM as inputs,
 a gain of 1 and a rate of 1000.
-The classes with the "P" suffix uses polling to detect the DRDY pulse, otherwise IRQ
+The classes with the "P" suffix uses polling to detect the DRDY pulse, otherwise Pin.IRQ
 is used.
 
 

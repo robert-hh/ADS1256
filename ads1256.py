@@ -182,10 +182,10 @@ class ADS1256:
             self.buffer_1[0] = CMD_RDATA
             self.cs(0)
             self.spi.write(self.buffer_1)
-            time.sleep_us(6)
+            # time.sleep_us(6)
             self.spi.readinto(self.buffer_3)
             self.cs(1)
-            result = self.buffer_3[0] << 16 | self.buffer_3[1] << 8 | self.buffer_3[0]
+            result = self.buffer_3[0] << 16 | self.buffer_3[1] << 8 | self.buffer_3[2]
             if result > 0x7FFFFF:
                 result -= 0x1000000
             return result
@@ -196,7 +196,7 @@ class ADS1256:
             self.buffer_1[0] = CMD_RDATAC
             self.cs(0)
             self.spi.write(self.buffer_1)
-            time.sleep_us(6)
+            # time.sleep_us(6)
             self.spi.readinto(self.buffer_3)
             self.cs(1)
 
@@ -206,7 +206,7 @@ class ADS1256:
                 self.cs(0)
                 self.spi.readinto(self.buffer_3)
                 self.cs(1)
-                result = self.buffer_3[0] << 16 | self.buffer_3[1] << 8 | self.buffer_3[0]
+                result = self.buffer_3[0] << 16 | self.buffer_3[1] << 8 | self.buffer_3[2]
                 if result > 0x7FFFFF:
                     result -= 0x1000000
                 buffer[i] = result
@@ -261,6 +261,8 @@ class ADS1256:
         # the input numbers are always set and must not be None
         config[0] = (ainp << 4) | ainn
         self.channel_table[channel] = config
+        if channel == self.previous_channel:
+            self.previous_channel = None
 
     def standby(self):
         self.write_cmd(CMD_STANDBY)
