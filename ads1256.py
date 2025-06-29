@@ -98,7 +98,7 @@ class ADS1256:
         self.buffer_1 = bytearray(1)
         self.buffer_2 = bytearray(2)
         self.buffer_3 = bytearray(3)
- 
+
         # The channel table is a list of logical channels with it's
         # configuration of inputs, gain and rate. If needed,
         # the device will be reconfigured when the respective
@@ -160,8 +160,8 @@ class ADS1256:
         # Set up the trigger for conversion enable.
         self.__drdy = False
         self.drdy.irq(trigger=Pin.IRQ_FALLING, handler=self._drdy_cb)
-        # Wait about 1 second for the DRDY event
-        for _ in range(20000):
+        # Wait about 5 seconds for the DRDY event
+        for _ in range(1000000):
             if self.__drdy is True:
                 break
             time.sleep_us(50)
@@ -189,7 +189,7 @@ class ADS1256:
             if result > 0x7FFFFF:
                 result -= 0x1000000
             return result
-        else:    
+        else:
             # Send the command and get one data item, which
             # is discarded
             self._wait_for_drdy()
@@ -201,19 +201,21 @@ class ADS1256:
             self.cs(1)
 
             # now get the bulk of data
-            for i in range(len(buffer)):        
+            for i in range(len(buffer)):
                 self._wait_for_drdy()
                 self.cs(0)
                 self.spi.readinto(self.buffer_3)
                 self.cs(1)
-                result = self.buffer_3[0] << 16 | self.buffer_3[1] << 8 | self.buffer_3[2]
-                if result > 0x7FFFFF:
-                    result -= 0x1000000
-                buffer[i] = result
+                buffer[i] = self.buffer_3[0] << 16 | self.buffer_3[1] << 8 | self.buffer_3[2]
+                # defer the sign check to speed up the loop
             self.buffer_1[0] = CMD_SDATAC
             self.cs(0)
             self.spi.write(self.buffer_1)
             self.cs(1)
+            # Sign check.
+            for i in range(len(buffer)):
+                if buffer[i] > 0x7FFFFF:
+                    buffer[i] -= 0x1000000
             return len(buffer)
 
     # configure the channel
@@ -225,7 +227,7 @@ class ADS1256:
         self.write_reg(REG_MUX, config_new)
         # Check the need for calibration
         if self.previous_channel is not None:
-            config_old = self.channel_table[previous_channel]
+            config_old = self.channel_table[self.previous_channel]
             cal_mode = (config_new[1] != config_old[1]) | ((config_new[2] != config_old[2]) << 1)
         else:
             # The set-up after reset may not match the first used configuration,
@@ -233,6 +235,8 @@ class ADS1256:
             cal_mode = SELFCAL_GAIN | SELFCAL_OFFSET
         self.calibration(cal_mode)
         self.previous_channel = channel
+        # wait for the actual cycle to finish
+        self._wait_for_drdy()
 
     # define or redefine a logical channel
     def channel(self, channel, ainp, ainn=AINCOM, gain=None, rate=None):
@@ -256,8 +260,8 @@ class ADS1256:
         else:
             # define a new channel.
             config = bytearray(3)
-            config[1] = 1 if gain is None else self._gain[gain]
-            config[2] = 1000 if rate is None else self._rate[rate]
+            config[1] = self._gain[1] if gain is None else self._gain[gain]
+            config[2] = self._rate[1000] if rate is None else self._rate[rate]
         # the input numbers are always set and must not be None
         config[0] = (ainp << 4) | ainn
         self.channel_table[channel] = config
@@ -277,9 +281,9 @@ class ADS1256:
     def calibration(self, mode=SELFCAL_GAIN | SELFCAL_OFFSET):
         if mode == SELFCAL_GAIN | SELFCAL_OFFSET:
             self.buffer_1[0] = CMD_SELFCAL
-        elif mode == SELFCAL_GAIN:   
+        elif mode == SELFCAL_GAIN:
             self.buffer_1[0] = CMD_SELFGCAL
-        elif mode == SELFCAL_OFFSET:   
+        elif mode == SELFCAL_OFFSET:
             self.buffer_1[0] = CMD_SELFOCAL
         else:
             return

@@ -10,9 +10,10 @@ the ADC value, reading the temperature and configuring the various device
 modes. In the following document, the ADS1256 or ADS1256 is used for both ADS1256 and ADS1255, unless
 otherwise stated.
 
-~~Tested with MicroPython ports for RP2040, STM32, SAMD, i.MX RT (e.g. Teensy),  
-ESP32, ESP8266, NRF52840 and W600. Approximate times for reading an ADC value:~~
-- ~~RP2040 at 125 MHz: 450 µs~~
+Tested with MicroPython ports for RP2040 ~~, STM32, SAMD, i.MX RT (e.g. Teensy),  
+ESP32, ESP8266, NRF52840 and W600~~. Approximate times for reading an ADC value:
+- RP2040 at 125 MHz: 200 µs single read, max rate 2000 for burst mode.
+- RP2350 at 150 MHz: 200 µs single read, max rate 3750 for burst mode.
 - ~~PYBD SF6 at 192 MHz: 250 µs~~
 - ~~Teensy 4.1 at 600 MHz: 100 µs~~
 - ~~SAMD51 at 120 MHz: 450 µs~~
@@ -35,8 +36,8 @@ It can be configured, but refuses to work. The polling driver works.~~
 
 ### ads1256 = ADS1256(spi, cs, drdy)
 ### ads1255 = ADS1255(spi, cs, drdy)
-### ads1256 = ADS1256P(spi, cs, drdy)
-### ads1255 = ADS1255P(spi, cs, drdy)
+~~### ads1256 = ADS1256P(spi, cs, drdy)~~  
+~~### ads1255 = ADS1255P(spi, cs, drdy)~~
 
 This is the interface constructor. spi must be a SPI object configured for phase=1 and polarity=0.
 cs and drdy are the pin objects of the GPIO pins used for the respective signals.
@@ -167,8 +168,10 @@ with the respective class name ADS1256 or ADS1255 or instance name.
     from ads1256 import ADS1256
 
     # Set up the interface. By default, channel 0 is created
-    spi = SPI(1, sck=14, mosi=15, miso=12)
-    ads1256 = ADS1256(spi, Pin(13), Pin(11))
+    spi = SPI(1, sck=14, mosi=15, miso=12, phase=1, polarity=0)
+    cs = Pin(13, Pin.OUT, value=1)
+    drdy = Pin(11, Pin.IN)
+    ads1256 = ADS1256(spi, cs, drdy)
     data  = array("i", bytearray(256*4))
 
     # read 256 values from the device
