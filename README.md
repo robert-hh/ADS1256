@@ -167,7 +167,7 @@ with the respective class name ADS1256 or ADS1255 or instance name.
     from ads1256 import ADS1256
 
     # Set up the interface. By default, channel 0 is created
-    spi = SPI(1, sck=14, mosi=15, miso=12)
+    spi = SPI(1, sck=14, mosi=15, miso=12, phase=1, polarity=0)
     ads1256 = ADS1256(spi, Pin(13), Pin(11))
     data  = array("i", bytearray(256*4))
 
