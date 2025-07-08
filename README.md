@@ -53,7 +53,7 @@ cs is chip select and drdy the pin for the conversion pulse. Any Pin can be used
 it does not have to be SPI pins. Only cs and sck must be at consecutive numbers,
 with cs being the lower number, like GPIO13 for cs and GPIO14 for sck
 
-statemachine tells the number of the first statmachine. The driver uses two statemachines with consecutive ids. They fit both in a single PIO.
+statemachine tells the number of the first statmachine. The driver uses three statemachines with consecutive ids. They all fit into a single PIO.
 
 
 ## Methods
