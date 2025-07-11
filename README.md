@@ -10,11 +10,11 @@ the ADC value, reading the temperature and configuring the various device
 modes. In the following document, ADS1256 or ads1256 is used for both ADS1256 and ADS1255, unless
 otherwise stated.
 
-Tested with MicroPython ports for RP2040 ~~, STM32, SAMD, i.MX RT (e.g. Teensy),  
+Tested with MicroPython ports for RP2040, RP2350 ~~, STM32, SAMD, i.MX RT (e.g. Teensy),  
 ESP32, ESP8266, NRF52840 and W600~~. Approximate times for reading an ADC value:
 - RP2040 at 125 MHz: 200 µs single read, max rate 2000 for burst mode.
 - RP2350 at 150 MHz: 200 µs single read, max rate 3750 for burst mode.
-- RP2340 at 125 MHZ using the PIO: 50µs single read, max rate 30000 for bust mode.
+- RP2040/2350 at 125 MHZ using the PIO: 40µs single read, max rate 30000 for bust mode.
 - ~~PYBD SF6 at 192 MHz: 250 µs~~
 - ~~Teensy 4.1 at 600 MHz: 100 µs~~
 - ~~SAMD51 at 120 MHz: 450 µs~~

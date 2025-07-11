@@ -123,7 +123,7 @@ class ADS1256:
             freq=4_000_000, set_base=drdy, in_base=din, out_base=dout, sideset_base=cs, jmp_pin=drdy)
 
         self.ads1256_sm_data = rp2.StateMachine(self.statemachine + 1, self.ads1256_asm_data,
-            freq=4_000_000, set_base=drdy, in_base=din, out_base=dout, sideset_base=cs, jmp_pin=drdy)
+            freq=3_500_000, set_base=drdy, in_base=din, out_base=dout, sideset_base=cs, jmp_pin=drdy)
 
         self.ads1256_sm_stop = rp2.StateMachine(self.statemachine + 2, self.ads1256_asm_stop,
             freq=4_000_000, set_base=drdy, in_base=din, out_base=dout, sideset_base=cs, jmp_pin=drdy)
@@ -173,7 +173,10 @@ class ADS1256:
         label("read_din")
         jmp(not_y, "end")       .side(0b00)[7]   # test for data to read
                                                  # and wait 8 clock cycles
+        nop()                   .side(0b00)[7]   # Wait more clock cycles before read
         jmp("read_loop_dec")    .side(0b00)[7]   # Wait more clock cycles before read
+                                                 # Total wait time must be 6µs at least
+                                                 # Is now 6.76 µs
         label("read_bit")
         nop()                   .side(0b10)[1]   # Just set clock high
         in_(pins, 1)            .side(0b00)      # shift in one bit
@@ -206,12 +209,11 @@ class ADS1256:
         label("wait_low")
         jmp(pin, "wait_low")    .side(0b00)
 # now read the data, 24 bit
-        set(x, 22)              .side(0b10)[1]   # test for data to read
-                                                 # and wait 8 clock cycles
+        set(x, 22)              .side(0b10)      # Set clock
         label("read_bit")
-        in_(pins, 1)            .side(0b00)[1]   # shift in one bit
-        jmp(x_dec, "read_bit")  .side(0b10)[1]   # and go for another bit, which
-        in_(pins, 1)            .side(0b00)[1]   # get the last bit
+        in_(pins, 1)            .side(0b00)      # shift in one bit
+        jmp(x_dec, "read_bit")  .side(0b10)      # and go for another bit, which
+        in_(pins, 1)            .side(0b00)      # get the last bit
                                                  # will be pushed automatically
     # Just send the SDATAC command and set CS high
     @staticmethod
