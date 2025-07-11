@@ -117,7 +117,6 @@ class ADS1256:
             irq_quiet = False, # generate an IRQ
             bswap = False   # Do not swap bytes (?)
         )
-        self.pio_dma.irq(handler=self.__irq_dma_finished, hard=True)
 
         self.ads1256_sm_cmd = rp2.StateMachine(self.statemachine, self.ads1256_asm_cmd,
             freq=4_000_000, set_base=drdy, in_base=din, out_base=dout, sideset_base=cs, jmp_pin=drdy)
@@ -218,7 +217,7 @@ class ADS1256:
     # Just send the SDATAC command and set CS high
     @staticmethod
     @rp2.asm_pio(
-        out_shiftdir=rp2.PIO.SHIFT_RIGHT,
+        out_shiftdir=rp2.PIO.SHIFT_LEFT,
         autopull=False,
         autopush=False,
         out_init=(rp2.PIO.OUT_LOW),
@@ -227,7 +226,8 @@ class ADS1256:
     )
     def ads1256_asm_stop():
         set(x, CMD_SDATAC)      .side(0b00)     # SDATAC command
-        mov(osr, reverse(x))    .side(0b00)     # revert is so we can shift right
+        mov(osr, x)             .side(0b00)     # revert is so we can shift right
+        out(x, 24)              .side(0b00)     # Skip the upper 24 bits.
         set(x, 7)               .side(0b00)     # 8 bits to be sent
         label("write_bit")
         out(pins, 1)            .side(0b10)[1]  # Write SDATAC
@@ -320,6 +320,7 @@ class ADS1256:
             self.ads1256_sm_data.restart()
             ADS1256.data_acquired = False
             self.pio_dma.config(read=self.ads1256_sm_data, write=buffer, count=len(buffer), ctrl=self.pio_ctrl)
+            self.pio_dma.irq(handler=self.__irq_dma_finished, hard=True)
             self.pio_dma.active(True)
             self.ads1256_sm_data.active(1)  # An go off
             return len(buffer)
