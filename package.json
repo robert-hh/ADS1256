@@ -1,6 +1,7 @@
 {
   "urls": [
-    ["ads1256.py", "github:robert-hh/ads1256/ads1256.py"]
+    ["ads1256.py", "github:robert-hh/ads1256/ads1256.py"],
+    ["ads1256_pio.py", "github:robert-hh/ads1256/ads1256_pio.py"]
   ],
   "version": "1.0.0",
   "deps": []

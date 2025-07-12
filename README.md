@@ -33,17 +33,17 @@ It can be configured, but refuses to work.~~
 
 ## Constructor
 
-### ads1256 = ADS1256(spi, cs, drdy)
-### ads1255 = ADS1255(spi, cs, drdy)
+### ads1256 = ADS1256(spi, cs, drdy[, gain=1, rate=1000])
+### ads1255 = ADS1255(spi, cs, drdy[, gain=1, rate=1000])
 
 This is the interface constructor. spi must be a SPI object configured for phase=1 and polarity=0.
-cs and drdy are the pin objects of the GPIO pins used for the respective signals.
-When calling the constructor, a default channel 0 will be defined with AIN0 and AINCOM as inputs,
-a gain of 1 and a rate of 1000.
+cs and drdy are the pin objects of the GPIO pins used for the respective signals.  
+When calling the constructor, a default channel 0 will be defined with AIN0 and AINCOM as inputs and
+the gain and rate set as optional parameters, and the ADS1256 will be configured with these settings.
 
 
-### ads1256 = ADS1256(sck, din, dout, cs, drdy[, statemachine=0])
-### ads1255 = ADS1255(sck, din, dout, cs, drdy[, statemachine=0])
+### ads1256 = ADS1256(sck, din, dout, cs, drdy[, statemachine=0, gain=1, rate=1000])
+### ads1255 = ADS1255(sck, din, dout, cs, drdy[, statemachine=0, gain=1, rate=1000])
 
 This is the constructor to be used for the RP2 PIO implementation. The first five
 arguments have to be Pin objects. sck is the clock pin, din the input data to the RP2, to be
@@ -53,7 +53,10 @@ cs is chip select and drdy the pin for the conversion pulse. Any Pin can be used
 it does not have to be SPI pins. Only cs and sck must be at consecutive numbers,
 with cs being the lower number, like GPIO13 for cs and GPIO14 for sck
 
-statemachine tells the number of the first statmachine. The driver uses three statemachines with consecutive ids. They all fit into a single PIO.
+statemachine tells the number of the first statmachine. The driver uses three statemachines with consecutive ids. They all fit into a single PIO.  
+
+When calling the constructor, a default channel 0 will be defined with AIN0 and AINCOM as inputs and
+the gain and rate set as optional parameters, and the ADS1256 will be configured with these settings.
 
 
 ## Methods

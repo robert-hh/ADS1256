@@ -88,7 +88,7 @@ class ADS1256:
     SELFCAL_GAIN = const(1)
     SELFCAL_OFFSET = const(2)
 
-    def __init__(self, spi, cs, drdy):
+    def __init__(self, spi, cs, drdy, gain=1, rate=1000):
         self.spi = spi
         self.cs = cs
         self.drdy = drdy
@@ -108,7 +108,8 @@ class ADS1256:
         self.reset()
         self.channel_table = { }
         # create a single default entry.
-        self.channel(0, 0, AINCOM, 1, 1000)
+        self.channel(0, 0, AINCOM, gain, rate)
+        self.channel_setup(0)
 
     def __call__(self):
         return self.read(self.previous_channel)
@@ -265,6 +266,7 @@ class ADS1256:
         # the input numbers are always set and must not be None
         config[0] = (ainp << 4) | ainn
         self.channel_table[channel] = config
+        # force re-configuration if the current channel is (re-)configured,
         if channel == self.previous_channel:
             self.previous_channel = None
 

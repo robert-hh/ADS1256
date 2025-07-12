@@ -89,7 +89,7 @@ class ADS1256:
     SELFCAL_GAIN = const(1)
     SELFCAL_OFFSET = const(2)
 
-    def __init__(self, sck, din, dout, cs, drdy, statemachine=0):
+    def __init__(self, sck, din, dout, cs, drdy, statemachine=0, gain=1, rate=1000):
 
         self.timeout = 5000
         self.buffer_1 = bytearray(1)
@@ -128,7 +128,8 @@ class ADS1256:
             freq=4_000_000, set_base=drdy, in_base=din, out_base=dout, sideset_base=cs, jmp_pin=drdy)
 
         self.reset()
-        self.channel(0, 0, AINCOM, 1, 1000)
+        self.channel(0, 0, AINCOM, gain, rate)
+        self.channel_setup(0)
 
     def __call__(self):
         return self.read(self.previous_channel)
@@ -395,6 +396,7 @@ class ADS1256:
         # the input numbers are always set and must not be None
         config[0] = (ainp << 4) | ainn
         self.channel_table[channel] = config
+        # force re-configuration if the current channel is (re-)configured,
         if channel == self.previous_channel:
             self.previous_channel = None
 
