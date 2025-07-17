@@ -124,9 +124,6 @@ class ADS1256:
         self.ads1256_sm_data = rp2.StateMachine(self.statemachine + 1, self.ads1256_asm_data,
             freq=3_500_000, set_base=drdy, in_base=din, out_base=dout, sideset_base=cs, jmp_pin=drdy)
 
-        self.ads1256_sm_stop = rp2.StateMachine(self.statemachine + 2, self.ads1256_asm_stop,
-            freq=4_000_000, set_base=drdy, in_base=din, out_base=dout, sideset_base=cs, jmp_pin=drdy)
-
         self.reset()
         self.channel(0, 0, AINCOM, gain, rate)
         self.channel_setup(0)
@@ -202,12 +199,15 @@ class ADS1256:
     def ads1256_asm_data():
 # Wait for a high level = start of the DRDY pulse
 # Use jmp for wait to get an independent DRDY pin.
+        pull()                   .side(0b00)    # get the # of samples
+        mov(y, osr)              .side(0b00)
         label("wait_high")
         jmp(pin, "wait_low")    .side(0b00)
         jmp("wait_high")        .side(0b00)
 # Wait for a low level = DRDY signal
         label("wait_low")
         jmp(pin, "wait_low")    .side(0b00)
+        jmp(not_y, "end")
 # now read the data, 24 bit
         set(x, 22)              .side(0b10)      # Set clock
         label("read_bit")
@@ -215,31 +215,18 @@ class ADS1256:
         jmp(x_dec, "read_bit")  .side(0b10)      # and go for another bit, which
         in_(pins, 1)            .side(0b00)      # get the last bit
                                                  # will be pushed automatically
-    # Just send the SDATAC command and set CS high
-    @staticmethod
-    @rp2.asm_pio(
-        out_shiftdir=rp2.PIO.SHIFT_LEFT,
-        autopull=False,
-        autopush=False,
-        out_init=(rp2.PIO.OUT_LOW),
-        set_init=(rp2.PIO.IN_LOW, rp2.PIO.IN_LOW),
-        sideset_init=(rp2.PIO.OUT_HIGH,rp2.PIO.OUT_LOW) # cs=1, sck=0
-    )
-    def ads1256_asm_stop():
-        set(x, CMD_SDATAC)      .side(0b00)     # SDATAC command
-        mov(osr, x)             .side(0b00)     # revert is so we can shift right
-        out(x, 24)              .side(0b00)     # Skip the upper 24 bits.
+        jmp(y_dec,"wait_high")  .side(0b00)     
+        label ("end")
+        pull()                  .side(0b00)
         set(x, 7)               .side(0b00)     # 8 bits to be sent
         label("write_bit")
         out(pins, 1)            .side(0b10)[1]  # Write SDATAC
         jmp(x_dec, "write_bit") .side(0b00)[1]
-        label("halt")
-        jmp("halt")             .side(0b01)     # Set CS 1 and stall
-
-
+                                                     
     def transfer_cmd(self, out_data, in_bytes, result_type=0):
         self.ads1256_sm_cmd.restart()
         # set the arguments for data sizes
+        self.ads1256_sm_data.active(0)      # stop the data machine if it is active 
         self.ads1256_sm_cmd.put(0 if out_data is None else (len(out_data) * 8) << 24)
         self.ads1256_sm_cmd.put((in_bytes * 8) << 24)
         self.ads1256_sm_cmd.active(1)       # start the transfer
@@ -319,6 +306,8 @@ class ADS1256:
             # now get the bulk of data
             self.buffer = buffer
             self.ads1256_sm_data.restart()
+            self.ads1256_sm_data.put(len(buffer))
+            self.ads1256_sm_data.put(CMD_SDATAC << 24)
             ADS1256.data_acquired = False
             self.pio_dma.config(read=self.ads1256_sm_data, write=buffer, count=len(buffer), ctrl=self.pio_ctrl)
             self.pio_dma.irq(handler=self.__irq_dma_finished, hard=True)
@@ -335,18 +324,11 @@ class ADS1256:
 
     def __irq_dma_finished(self, sm):
         # Shift and sign check later when it's time to do so
-        # set CS high
-        self.ads1256_sm_data.active(False)
         self.pio_dma.irq(handler=None)
         # clear the sm output fifo in case of a delayed call
         while self.ads1256_sm_data.rx_fifo() > 0:
             self.ads1256_sm_data.get()
-        # Start the stop statemachine to send the SDATAC command
-        # and pull CS high.
-        self.ads1256_sm_stop.restart()
-        self.ads1256_sm_stop.active(1)
         micropython.schedule(ADS1256.align_buffer, self.buffer)
-        self.ads1256_sm_stop.active(0)
 
     # configure the channel
     def channel_setup(self, channel):
