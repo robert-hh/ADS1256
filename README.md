@@ -13,8 +13,8 @@ otherwise stated.
 Tested with MicroPython ports for RP2040, RP2350 ~~, STM32, SAMD, i.MX RT (e.g. Teensy),  
 ESP32, ESP8266, NRF52840 and W600~~. Approximate times for reading an ADC value:
 - RP2040 at 125 MHz: 200 µs single read, max rate 2000 for burst mode.
-- RP2350 at 150 MHz: 200 µs single read, max rate 3750 for burst mode.
-- RP2040/2350 at 125 MHZ using the PIO: 40µs single read, max rate 30000 for bust mode.
+- RP2350 at 150 MHz: 78 µs single read, max rate 3750 for burst mode.
+- RP2040/2350 at 125/150 MHZ using the PIO: 40µs single read, max rate 30000 for burst mode.
 - ~~PYBD SF6 at 192 MHz: 250 µs~~
 - ~~Teensy 4.1 at 600 MHz: 100 µs~~
 - ~~SAMD51 at 120 MHz: 450 µs~~
@@ -53,7 +53,7 @@ cs is chip select and drdy the pin for the conversion pulse. Any Pin can be used
 it does not have to be SPI pins. Only cs and sck must be at consecutive numbers,
 with cs being the lower number, like GPIO13 for cs and GPIO14 for sck
 
-statemachine tells the number of the first statmachine. The driver uses three statemachines with consecutive ids. They all fit into a single PIO.  
+statemachine tells the number of the first statmachine. The driver uses two statemachines with consecutive ids. They all fit into a single PIO.  
 
 When calling the constructor, a default channel 0 will be defined with AIN0 and AINCOM as inputs and
 the gain and rate set as optional parameters, and the ADS1256 will be configured with these settings.
