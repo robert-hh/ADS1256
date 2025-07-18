@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from machine import Pin
+from machine import Pin, idle
 import time
 import micropython
 import rp2
@@ -181,9 +181,8 @@ class ADS1256:
         jmp(y_dec, "read_bit")  .side(0b00)      # and go for another bit, which
 # done
         label("end")
-        push()                  .side(0b00)[7]   # always a single push at the end
-        label("halt")
-        jmp("halt")             .side(0b01)      # set CS off
+        push()                  .side(0b01)[7]   # always a single push at the end
+                                                 # which sets also CS inactive
 
     @staticmethod
     @rp2.asm_pio(
@@ -209,12 +208,12 @@ class ADS1256:
         jmp(pin, "wait_low")    .side(0b00)
         jmp(not_y, "end")
 # now read the data, 24 bit
-        set(x, 22)              .side(0b10)      # Set clock
+        set(x, 22)              .side(0b10)     # Set clock
         label("read_bit")
-        in_(pins, 1)            .side(0b00)      # shift in one bit
-        jmp(x_dec, "read_bit")  .side(0b10)      # and go for another bit, which
-        in_(pins, 1)            .side(0b00)      # get the last bit
-                                                 # will be pushed automatically
+        in_(pins, 1)            .side(0b00)     # shift in one bit
+        jmp(x_dec, "read_bit")  .side(0b10)     # and go for another bit, which
+        in_(pins, 1)            .side(0b00)     # get the last bit
+                                                # will be pushed automatically
         jmp(y_dec,"wait_high")  .side(0b00)     
         label ("end")
         pull()                  .side(0b00)
@@ -222,11 +221,11 @@ class ADS1256:
         label("write_bit")
         out(pins, 1)            .side(0b10)[1]  # Write SDATAC
         jmp(x_dec, "write_bit") .side(0b00)[1]
+        push()                  .side(0b01)     # Tell it's finished, and pull CS high
                                                      
     def transfer_cmd(self, out_data, in_bytes, result_type=0):
         self.ads1256_sm_cmd.restart()
         # set the arguments for data sizes
-        self.ads1256_sm_data.active(0)      # stop the data machine if it is active 
         self.ads1256_sm_cmd.put(0 if out_data is None else (len(out_data) * 8) << 24)
         self.ads1256_sm_cmd.put((in_bytes * 8) << 24)
         self.ads1256_sm_cmd.active(1)       # start the transfer
@@ -308,27 +307,26 @@ class ADS1256:
             self.ads1256_sm_data.restart()
             self.ads1256_sm_data.put(len(buffer))
             self.ads1256_sm_data.put(CMD_SDATAC << 24)
-            ADS1256.data_acquired = False
+            self.data_acquired = False
             self.pio_dma.config(read=self.ads1256_sm_data, write=buffer, count=len(buffer), ctrl=self.pio_ctrl)
-            self.pio_dma.irq(handler=self.__irq_dma_finished, hard=True)
+            self.pio_dma.irq(handler=self.__irq_dma_finished, hard=False)
             self.pio_dma.active(True)
             self.ads1256_sm_data.active(1)  # An go off
             return len(buffer)
 
-    @staticmethod
-    def align_buffer(buffer):
-        for i in range(len(buffer)):
-            if buffer[i] > 0x7FFFFF:
-                buffer[i] -= 0x1000000
-        ADS1256.data_acquired = True
-
     def __irq_dma_finished(self, sm):
         # Shift and sign check later when it's time to do so
         self.pio_dma.irq(handler=None)
-        # clear the sm output fifo in case of a delayed call
-        while self.ads1256_sm_data.rx_fifo() > 0:
-            self.ads1256_sm_data.get()
-        micropython.schedule(ADS1256.align_buffer, self.buffer)
+        buffer = self.buffer
+        for i in range(len(buffer)):
+            if buffer[i] > 0x7FFFFF:
+                buffer[i] -= 0x1000000
+        # wait for the DATA state machine to stop continous read
+        while self.ads1256_sm_data.rx_fifo() == 0:
+            idle()
+        self.ads1256_sm_data.get()
+        self.ads1256_sm_data.active(0)
+        self.data_acquired = True
 
     # configure the channel
     def channel_setup(self, channel):
