@@ -209,10 +209,8 @@ class ADS1256:
                 self.cs(1)
                 buffer[i] = self.buffer_3[0] << 16 | self.buffer_3[1] << 8 | self.buffer_3[2]
                 # defer the sign check to speed up the loop
-            self.buffer_1[0] = CMD_SDATAC
-            self.cs(0)
-            self.spi.write(self.buffer_1)
-            self.cs(1)
+            self._wait_for_drdy()
+            self.write_cmd(CMD_SDATAC)
             # Sign check.
             for i in range(len(buffer)):
                 if buffer[i] > 0x7FFFFF:
