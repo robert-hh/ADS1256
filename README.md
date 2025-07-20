@@ -12,8 +12,8 @@ otherwise stated.
 
 Tested with MicroPython ports for RP2040, RP2350 ~~, STM32, SAMD, i.MX RT (e.g. Teensy),  
 ESP32, ESP8266, NRF52840 and W600~~. Approximate times for reading an ADC value:
-- RP2040 at 125 MHz: 200 µs single read, max rate 2000 for burst mode.
-- RP2350 at 150 MHz: 78 µs single read, max rate 3750 for burst mode.
+- RP2040 at 125 MHz: 300 µs single read, max rate 7500 for burst mode.
+- RP2350 at 150 MHz: 78 µs single read, max rate 7500 for burst mode.
 - RP2040/2350 at 125/150 MHZ using the PIO: 40µs single read, max rate 30000 for burst mode.
 - ~~PYBD SF6 at 192 MHz: 250 µs~~
 - ~~Teensy 4.1 at 600 MHz: 100 µs~~

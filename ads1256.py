@@ -172,12 +172,14 @@ class ADS1256:
             self.drdy.irq(handler=None)
             raise OSError("Sensor does not respond")
 
+    @micropython.native
     def align_buffer(self, buffer):
         for i in range(len(buffer)):
             if buffer[i] > 0x7FFFFF:
                 buffer[i] -= 0x1000000
         self.data_acquired = True
 
+    @micropython.native
     def __buffer_cb(self, drdy):
         # Check the sign later when it's time to do so
         if self.buffer_index < self.buffer_size:
