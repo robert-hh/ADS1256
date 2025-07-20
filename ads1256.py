@@ -23,6 +23,7 @@
 from machine import Pin
 import time
 import array
+import micropython
 
 class ADS1256:
     # Registers
@@ -171,6 +172,28 @@ class ADS1256:
             self.drdy.irq(handler=None)
             raise OSError("Sensor does not respond")
 
+    def align_buffer(self, buffer):
+        for i in range(len(buffer)):
+            if buffer[i] > 0x7FFFFF:
+                buffer[i] -= 0x1000000
+        self.data_acquired = True
+
+    def __buffer_cb(self, drdy):
+        # Check the sign later when it's time to do so
+        if self.buffer_index < self.buffer_size:
+            self.cs(0)
+            self.spi.readinto(self.buffer_3)
+            self.cs(1)
+            self.buffer[self.buffer_index] = self.buffer_3[0] << 16 | self.buffer_3[1] << 8 | self.buffer_3[2]
+            self.buffer_index += 1
+            # self.drdy.irq(trigger=Pin.IRQ_FALLING, handler=self.__buffer_cb)
+        elif self.buffer_index == self.buffer_size:
+            self.write_cmd(CMD_SDATAC)
+            self.buffer_index += 1
+        else:
+            micropython.schedule(self.align_buffer, self.buffer)
+            self.drdy.irq(handler=None)
+
     # read a single value or a set of values from a channel, which
     # has to be defined using the channel() method.
     def read(self, channel, buffer=None):
@@ -201,20 +224,11 @@ class ADS1256:
             self.spi.readinto(self.buffer_3)
             self.cs(1)
 
-            # now get the bulk of data
-            for i in range(len(buffer)):
-                self._wait_for_drdy()
-                self.cs(0)
-                self.spi.readinto(self.buffer_3)
-                self.cs(1)
-                buffer[i] = self.buffer_3[0] << 16 | self.buffer_3[1] << 8 | self.buffer_3[2]
-                # defer the sign check to speed up the loop
-            self._wait_for_drdy()
-            self.write_cmd(CMD_SDATAC)
-            # Sign check.
-            for i in range(len(buffer)):
-                if buffer[i] > 0x7FFFFF:
-                    buffer[i] -= 0x1000000
+            self.data_acquired = False
+            self.buffer = buffer
+            self.buffer_size = len(buffer)
+            self.buffer_index = 0
+            self.drdy.irq(trigger=Pin.IRQ_FALLING, handler=self.__buffer_cb)
             return len(buffer)
 
     # configure the channel
@@ -295,28 +309,5 @@ class ADS1256:
 
 
 class ADS1255(ADS1256):
-
-    NUM_INPUTS = 2
-
-class ADS1256P(ADS1256):
-
-    def _wait_for_drdy(self):
-        drdy = self.drdy
-        # wait for DRDY being high
-        start = time.ticks_ms()
-        while time.ticks_diff(time.ticks_ms(), start) < 1000:
-            if drdy():
-                break
-        else:
-            raise OSError("No DRDY pulse found")
-        # wait for DRDY getting low
-        for _ in range(20000):
-            if not drdy():
-                break
-            time.sleep_us(50)
-        else:
-            raise OSError("Sensor does not respond")
-
-class ADS1255P(ADS1256P):
 
     NUM_INPUTS = 2

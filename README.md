@@ -79,7 +79,12 @@ for the AINCOM signal.
 Read and ADC value with the configuration set for the channel. If buffer is supplied,
 it will be filled with data in the read continuous mode until the buffer is filled.
 The buffer must be an array of array.array() type 'i' (4 byte quantities). The return value
-is the number of sampled values.
+is the number of sampled values. The call will
+return immediately, while the data is collected. One can use the
+flag ads.data_acquired of the add1256 object to test, whether the data
+acquisition is finished. The data in the buffer is **NOT** sign
+corrected and in the correct range until data_acquired is True.  
+
 If buffer is not supplied, a single read is performed and the value is returned.
 
 If the channel used by read is different from the previous channel, the device
@@ -175,7 +180,7 @@ with the respective class name ADS1256 or ADS1255 or instance name.
     # Example for using the driver with a RP2 device
     # SPI at GPIO12 - GPIO15, DRDY at GPIO11
     #
-    from machine import SPI, Pin
+    from machine import SPI, Pin, idle
     from array import array
     from ads1256 import ADS1256
 
@@ -188,13 +193,17 @@ with the respective class name ADS1256 or ADS1255 or instance name.
 
     # read 256 values from the device
     num_values = ads1256.read(0, data)
+    # Wait for the data to get acquired. Instead of waitint, other
+    # tasks can be performed.
+    while ads1256.data_acquired is False:
+        idle()
 
     # Create a second channel with differential inputs AIN1 <-> AIN2,
     # gain=2, rate=100
-    ads1256.channel(2, 1, 2, gain=2, rate=100)
+    ads1256.channel(1, 1, 2, gain=2, rate=100)
 
     # Read a single value
-    value = read(2)
+    value = read(1)
 
 Example for using the driver with a RP2 device using the PIO state machine:
 
