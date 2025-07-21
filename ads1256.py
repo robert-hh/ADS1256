@@ -110,6 +110,8 @@ class ADS1256:
         self.channel_table = { }
         # create a single default entry.
         self.channel(0, 0, AINCOM, gain, rate)
+        # Wait a moment after reset
+        time.sleep_ms(1)
         self.channel_setup(0)
 
     def __call__(self):
@@ -188,13 +190,15 @@ class ADS1256:
             self.cs(1)
             self.buffer[self.buffer_index] = self.buffer_3[0] << 16 | self.buffer_3[1] << 8 | self.buffer_3[2]
             self.buffer_index += 1
-            # self.drdy.irq(trigger=Pin.IRQ_FALLING, handler=self.__buffer_cb)
         elif self.buffer_index == self.buffer_size:
             self.write_cmd(CMD_SDATAC)
             self.buffer_index += 1
         else:
-            micropython.schedule(self.align_buffer, self.buffer)
             self.drdy.irq(handler=None)
+            try:
+                micropython.schedule(self.align_buffer, self.buffer)
+            except:
+                self.align_buffer(self.buffer)
 
     # read a single value or a set of values from a channel, which
     # has to be defined using the channel() method.

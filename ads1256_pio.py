@@ -126,6 +126,8 @@ class ADS1256:
 
         self.reset()
         self.channel(0, 0, AINCOM, gain, rate)
+        # Wait a moment after reset
+        time.sleep_ms(1)
         self.channel_setup(0)
 
     def __call__(self):

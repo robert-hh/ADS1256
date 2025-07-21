@@ -1,8 +1,3 @@
-# WARNING: This driver is in a draft state and not yet tested.
-
-It's published for discussion purposes. Tests will probably be done until
-July 4, 2025.
-
 # ADS1256: MicroPython classes for the ADS1256 and ADS1255 ADC
 
 This is a short and simple class for the ADS1256 and ADS1255 ADC. It supports reading
@@ -10,46 +5,42 @@ the ADC value, reading the temperature and configuring the various device
 modes. In the following document, ADS1256 or ads1256 is used for both ADS1256 and ADS1255, unless
 otherwise stated.
 
-Tested with MicroPython ports for RP2040, RP2350 ~~, STM32, SAMD, i.MX RT (e.g. Teensy),  
-ESP32, ESP8266, NRF52840 and W600~~. Approximate times for reading an ADC value:
+Tested with MicroPython ports for RP2040, RP2350, SAMD, i.MX RT (e.g. Teensy), STM32,  
+ESP32, ESP8266, NRF52840, and W600. Approximate times for reading an ADC value:
 - RP2040 at 125 MHz: 300 µs single read, max rate 7500 for burst mode.
 - RP2350 at 150 MHz: 78 µs single read, max rate 7500 for burst mode.
 - RP2040/2350 at 125/150 MHZ using the PIO: 40µs single read, max rate 30000 for burst mode.
-- ~~PYBD SF6 at 192 MHz: 250 µs~~
-- ~~Teensy 4.1 at 600 MHz: 100 µs~~
-- ~~SAMD51 at 120 MHz: 450 µs~~
-- ~~SAMD21 at 48 MHz: 1.2 ms~~
-- ~~ESP32 at 160 MHz: 900 µs~~
-- ~~ESP8266 at 80 MHz: 1.2 ms~~
-- ~~NRF52840: 800µs.~~
-- ~~Renesas RA6M2 at 120 MHz: 600µs~~
-- ~~W600 at 80 MHz: 900 µs~~ 
-
-~~The nrf port has the problem that the device cannot be configured when using the IRQ based driver.
-Otherwise the ADS1256 operates at it's default mode, which is gain=1, rate=1000, channel=0.
-pin.irq() seems not to work at the Renesas port, at least not with the tested EV-RA6M2 board.
-It can be configured, but refuses to work.~~
+- PYBD SF6 at 192 MHz: 110 µs single read, max rate 15000 for burst mode, SPI baudrate=1.5MHz.
+- Teensy 4.1 at 600 MHz: 120 µs single read, max rate 15000 for burst mode, SPI baudrate=1.8MHz
+- SAMD51 at 120 MHz: 100 µs single read, max rate 7500 for burst mode, SPI baudrate=1.8MHz
+- SAMD21 at 48 MHz: 300µs single read, max rate 3750 for burst mode, SPI baudrate=1.8MHz
+- ESP32 at 160 MHz: 200 µs single read, max rate 3750 for burst mode, SPI baudrate=1.8MHz
+- ESP8266 at 80 MHz: 450 µs single read, max rate 1000 for burst mode, SPI baudrate=1.5MHz
+- NRF52840: 240 µs single read, max rate 3750 for burst mode, SPI baudrate=1MHz
+- W600 at 80 MHz: 400 µs single read, max rate 2000 for burst mode, SPI baudrate=1.5MHz
 
 
-## Constructor
+## Constructor with ads1256.py
 
 ### ads1256 = ADS1256(spi, cs, drdy[, gain=1, rate=1000])
 ### ads1255 = ADS1255(spi, cs, drdy[, gain=1, rate=1000])
 
-This is the interface constructor. spi must be a SPI object configured for phase=1 and polarity=0.
-cs and drdy are the pin objects of the GPIO pins used for the respective signals.  
+This is the interface constructor. `spi` must be a SPI object configured for phase=1 and polarity=0.
+mosi must be conncted to the ADS1256 DIN pin, miso to the ADS1256 DOUT pin and sck to the ADS1256 SCK pin. `cs` and `drdy` are the pin objects of the GPIO pins used for the respective ADS1256 signals.  
 When calling the constructor, a default channel 0 will be defined with AIN0 and AINCOM as inputs and
 the gain and rate set as optional parameters, and the ADS1256 will be configured with these settings.
 
+
+## Constructor with ads1256_pio.py
 
 ### ads1256 = ADS1256(sck, din, dout, cs, drdy[, statemachine=0, gain=1, rate=1000])
 ### ads1255 = ADS1255(sck, din, dout, cs, drdy[, statemachine=0, gain=1, rate=1000])
 
 This is the constructor to be used for the RP2 PIO implementation. The first five
-arguments have to be Pin objects. sck is the clock pin, din the input data to the RP2, to be
-connected with DOUT of the ADS1256, dout is the output data pin of the RP2 board, to be
+arguments have to be Pin objects. `sck` is the clock pin, `din` the input data to the RP2, to be
+connected with DOUT of the ADS1256, `dout` is the output data pin of the RP2 board, to be
 connected to DIN of the ADS1256. 
-cs is chip select and drdy the pin for the conversion pulse. Any Pin can be used,
+`cs` is chip select and `drdy` the pin for the conversion pulse. Any Pin can be used,
 it does not have to be SPI pins. Only cs and sck must be at consecutive numbers,
 with cs being the lower number, like GPIO13 for cs and GPIO14 for sck
 
@@ -81,22 +72,22 @@ it will be filled with data in the read continuous mode until the buffer is fill
 The buffer must be an array of array.array() type 'i' (4 byte quantities). The return value
 is the number of sampled values. The call will
 return immediately, while the data is collected. One can use the
-flag ads.data_acquired of the add1256 object to test, whether the data
+flag `data_acquired` of the add1256 object to test, whether the data
 acquisition is finished. The data in the buffer is **NOT** sign
-corrected and in the correct range until data_acquired is True.  
+corrected and in the correct range until `data_acquired` is True.  
 
 If buffer is not supplied, a single read is performed and the value is returned.
 
 If the channel used by read is different from the previous channel, the device
 is reconfigured before reading and re-calibrated, if needed.
 
-### ads1256.calibration(mode)
+### ads1256.calibration([mode=3])
 
-Request a self-calibration of the device. Argument values:
+Request a self-calibration of the device. Argument values are:
 
-1: calibrate the gain
-2: calibrate the offset
-3: calibrate gain and offset
+1 Calibrate the gain.  
+2 Calibrate the offset.  
+3 Calibrate gain and offset.  
 
 Other values are ignored.
 
@@ -205,7 +196,7 @@ with the respective class name ADS1256 or ADS1255 or instance name.
     # Read a single value
     value = read(1)
 
-Example for using the driver with a RP2 device using the PIO state machine:
+## Example for using the driver with a RP2 device using the PIO state machine:
 
     from machine import Pin, idle
     from array import array
