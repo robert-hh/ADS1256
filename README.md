@@ -26,9 +26,12 @@ ESP32, ESP8266, NRF52840, and W600. Approximate times for reading an ADC value:
 ### ads1255 = ADS1255(spi, cs, drdy[, gain=1, rate=1000])
 
 This is the interface constructor. `spi` must be a SPI object configured for phase=1 and polarity=0.
-mosi must be conncted to the ADS1256 DIN pin, miso to the ADS1256 DOUT pin and sck to the ADS1256 SCK pin. `cs` and `drdy` are the pin objects of the GPIO pins used for the respective ADS1256 signals.  
+mosi must be conncted to the ADS1256 DIN pin, miso to the ADS1256 DOUT pin and sck to the ADS1256 SCK
+pin. The SPI baudrate must be lower than ADS1256_clock / 4. The typical ADS1256 clock frequency
+is 7.68MHz, resulting a maximum SPI baudrate of 1.9 Mhz. 
+`cs` and `drdy` are the pin objects of the GPIO pins used for the respective ADS1256 signals.  
 When calling the constructor, a default channel 0 will be defined with AIN0 and AINCOM as inputs and
-the gain and rate set as optional parameters, and the ADS1256 will be configured with these settings.
+the gain and rate set as optional parameters. The ADS1256 will be configured with these settings.
 
 
 ## Constructor with ads1256_pio.py
@@ -44,17 +47,17 @@ connected to DIN of the ADS1256.
 it does not have to be SPI pins. Only cs and sck must be at consecutive numbers,
 with cs being the lower number, like GPIO13 for cs and GPIO14 for sck
 
-statemachine tells the number of the first statmachine. The driver uses two statemachines with consecutive ids. They all fit into a single PIO.  
+statemachine tells the number of the first statmachine. The driver uses two statemachines with consecutive ids. Both fit into a single PIO.  
 
 When calling the constructor, a default channel 0 will be defined with AIN0 and AINCOM as inputs and
-the gain and rate set as optional parameters, and the ADS1256 will be configured with these settings.
+the gain and rate set as optional parameters. The ADS1256 will be configured with these settings.
 
 
 ## Methods
 
-### ads1256.channel(id, ainp, ainn=8, gain=1, rate=1000)
+### ads1256.channel(id [, ainp=None, ainn=8, gain=1, rate=1000])
 
-Define ro change a logical channel used to read the data. This channel is not identical to
+Define or change a logical channel used to read the data. This channel is not identical to
 the ADC input pins. It defines the configuration of input pins, gain and sampling rate.
 
 - id: A token used to identify the channel. It can be anything that can be used as key to a dictionary, e.g. a number or a string.
@@ -64,6 +67,8 @@ for the AINCOM signal.
 for the AINCOM signal.
 - gain: The gain set for the channel.
 - rate: The sampling rate of the channel.
+
+If just the id is supplied as argument, a string with the channel settings is returned.
 
 ### ads1256.read(channel [, buffer])
 

@@ -117,6 +117,9 @@ class ADS1256:
     def __call__(self):
         return self.read(self.previous_channel)
 
+    def __repr__(self):
+        return [self.channel(key) for key in self.channel_table]
+
     # Write to the registers. data is either an object with buffer
     # protocol or for convenience a single number.
     def write_reg(self, reg, data):
@@ -258,35 +261,45 @@ class ADS1256:
         self._wait_for_drdy()
 
     # define or redefine a logical channel
-    def channel(self, channel, ainp, ainn=AINCOM, gain=None, rate=None):
-        # check the argument values
-        if not (ainp == AINCOM or 0 <= ainp < self.NUM_INPUTS):
-            raise ValueError("invalid input ainp")
-        if not (ainn == AINCOM or 0 <= ainn < self.NUM_INPUTS):
-            raise ValueError("invalid input ainn")
-        if not (gain is None or gain in self._gain.keys()):
-            raise ValueError("invalid value for gain")
-        if not (rate is None or rate in self._rate.keys()):
-            raise ValueError("invalid value for rate")
+    def channel(self, channel, ainp=None, ainn=AINCOM, gain=None, rate=None):
+        if ainp is not None:
+            # check the argument values
+            if not (ainp == AINCOM or 0 <= ainp < self.NUM_INPUTS):
+                raise ValueError("invalid input ainp")
+            if not (ainn == AINCOM or 0 <= ainn < self.NUM_INPUTS):
+                raise ValueError("invalid input ainn")
+            if not (gain is None or gain in self._gain.keys()):
+                raise ValueError("invalid value for gain")
+            if not (rate is None or rate in self._rate.keys()):
+                raise ValueError("invalid value for rate")
 
-        if channel in self.channel_table.keys():
-            # redefine a channel
-            config = self.channel_table[channel]
-            if gain is not None:
-                config[1] = self._gain[gain]
-            if rate is not None:
-                config[2] = self._rate[rate]
+            if channel in self.channel_table.keys():
+                # redefine a channel
+                config = self.channel_table[channel]
+                if gain is not None:
+                    config[1] = self._gain[gain]
+                if rate is not None:
+                    config[2] = self._rate[rate]
+            else:
+                # define a new channel.
+                config = bytearray(3)
+                config[1] = self._gain[1] if gain is None else self._gain[gain]
+                config[2] = self._rate[1000] if rate is None else self._rate[rate]
+            # the input numbers are always set and must not be None
+            config[0] = (ainp << 4) | ainn
+            self.channel_table[channel] = config
+            # force re-configuration if the current channel is (re-)configured,
+            if channel == self.previous_channel:
+                self.previous_channel = None
         else:
-            # define a new channel.
-            config = bytearray(3)
-            config[1] = self._gain[1] if gain is None else self._gain[gain]
-            config[2] = self._rate[1000] if rate is None else self._rate[rate]
-        # the input numbers are always set and must not be None
-        config[0] = (ainp << 4) | ainn
-        self.channel_table[channel] = config
-        # force re-configuration if the current channel is (re-)configured,
-        if channel == self.previous_channel:
-            self.previous_channel = None
+            if channel in self.channel_table.keys(): 
+                config = self.channel_table[channel]
+                return "channel({}, ainp={}, ainn={}, gain={}, rate={})".format(
+                    channel, config[0] >> 4, config[0] & 0x0f,
+                    {value: key for key, value in self._gain.items()}[config[1]],
+                    {value: key for key, value in self._rate.items()}[config[2]])
+            else:
+                raise ValueError("channel not defined")
 
     def standby(self):
         self.write_cmd(CMD_STANDBY)
