@@ -152,8 +152,8 @@ class ADS1256:
         # loaded before start
         # First argument: Bits to write
         # Second argument: Bits to read
-        out(x, 8)             .side(0b00)      # put it into x
-        out(y, 8)             .side(0b00)      # put it into y
+        out(x, 8)               .side(0b01)      # put it into x, set/keep CS high
+        out(y, 8)               .side(0b00)      # put it into y
 # Wait for a high level = start of the DRDY pulse
 # Use jmp for wait to get an independent DRDY pin.
         label("wait_high")
@@ -185,8 +185,8 @@ class ADS1256:
         jmp(y_dec, "read_bit")  .side(0b00)      # and go for another bit, which
 # done
         label("end")
-        push()                  .side(0b01)[7]   # always a single push at the end
-                                                 # which sets also CS inactive
+        push()                  .side(0b00)[7]   # always a single push at the end
+                                                 # CS will be set inactive after wrap
 
     @staticmethod
     @rp2.asm_pio(
@@ -202,7 +202,7 @@ class ADS1256:
     def ads1256_asm_data():
 # Wait for a high level = start of the DRDY pulse
 # Use jmp for wait to get an independent DRDY pin.
-        pull()                   .side(0b00)    # get the # of samples
+        pull()                   .side(0b01)    # get the # of samples, set/keep CS high
         mov(y, osr)              .side(0b00)
         label("wait_high")
         jmp(pin, "wait_low")    .side(0b00)
@@ -220,12 +220,13 @@ class ADS1256:
                                                 # will be pushed automatically
         jmp(y_dec,"wait_high")  .side(0b00)     
         label ("end")
-        pull()                  .side(0b00)
+        pull()                  .side(0b00)     # get the command to be sent
         set(x, 7)               .side(0b00)     # 8 bits to be sent
         label("write_bit")
         out(pins, 1)            .side(0b10)[1]  # Write SDATAC
         jmp(x_dec, "write_bit") .side(0b00)[1]
-        push()                  .side(0b01)     # Tell it's finished, and pull CS high
+        push()                  .side(0b00)[3]  # Tell it's finished, and wait 1 µs
+                                                # CS will be set inactive after wrap to line 1
                                                      
     def transfer_cmd(self, out_data, in_bytes, result_type=0):
         self.ads1256_sm_cmd.restart()
@@ -318,6 +319,7 @@ class ADS1256:
             self.ads1256_sm_data.active(1)  # An go off
             return len(buffer)
 
+    @micropython.native
     def __irq_dma_finished(self, sm):
         # Shift and sign check later when it's time to do so
         self.pio_dma.irq(handler=None)
