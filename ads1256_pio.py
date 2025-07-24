@@ -95,6 +95,7 @@ class ADS1256:
         self.buffer_1 = bytearray(1)
         self.buffer_2 = bytearray(2)
         self.buffer_3 = bytearray(3)
+        self.cs = cs
 
         # The channel table is a list of logical channels with it's
         # configuration of inputs, gain and rate. If needed,
@@ -153,19 +154,19 @@ class ADS1256:
         # First argument: Bits to write
         # Second argument: Bits to read
         out(x, 8)               .side(0b01)      # put it into x, set/keep CS high
-        out(y, 8)               .side(0b00)      # put it into y
+        out(y, 8)               .side(0b01)      # put it into y
 # Wait for a high level = start of the DRDY pulse
 # Use jmp for wait to get an independent DRDY pin.
         label("wait_high")
-        jmp(pin, "wait_low")    .side(0b00)
-        jmp("wait_high")        .side(0b00)
+        jmp(pin, "wait_low")    .side(0b01)
+        jmp("wait_high")        .side(0b01)
 # Wait for a low level = DRDY signal
         label("wait_low")
-        jmp(pin, "wait_low")    .side(0b00)
+        jmp(pin, "wait_low")    .side(0b01)
 
 # Now write the data
-        jmp(not_x, "read_din")  .side(0b00)      # test for data to write
-        jmp(x_dec, "write_bit") .side(0b00)      # Just decrement
+        jmp(not_x, "read_din")  .side(0b01)[3]   # test for data to write
+        jmp(x_dec, "write_bit") .side(0b00)[3]   # Just decrement
         label("write_bit")
         out(pins, 1)            .side(0b10)[1]
         jmp(x_dec, "write_bit") .side(0b00)[1]
@@ -182,7 +183,7 @@ class ADS1256:
         nop()                   .side(0b10)[1]   # Just set clock high
         in_(pins, 1)            .side(0b00)      # shift in one bit
         label("read_loop_dec")
-        jmp(y_dec, "read_bit")  .side(0b00)      # and go for another bit, which
+        jmp(y_dec, "read_bit")  .side(0b00)      # and go for another bit
 # done
         label("end")
         push()                  .side(0b00)[7]   # always a single push at the end
@@ -202,23 +203,23 @@ class ADS1256:
     def ads1256_asm_data():
 # Wait for a high level = start of the DRDY pulse
 # Use jmp for wait to get an independent DRDY pin.
-        pull()                   .side(0b01)    # get the # of samples, set/keep CS high
-        mov(y, osr)              .side(0b00)
+        pull()                  .side(0b01)     # get the # of samples, set/keep CS high
+        mov(y, osr)             .side(0b01)
         label("wait_high")
-        jmp(pin, "wait_low")    .side(0b00)
-        jmp("wait_high")        .side(0b00)
+        jmp(pin, "wait_low")    .side(0b01)
+        jmp("wait_high")        .side(0b01)
 # Wait for a low level = DRDY signal
         label("wait_low")
-        jmp(pin, "wait_low")    .side(0b00)
-        jmp(not_y, "end")
+        jmp(pin, "wait_low")    .side(0b01)
+        jmp(not_y, "end")       .side(0b00)
 # now read the data, 24 bit
-        set(x, 22)              .side(0b10)     # Set clock
+        set(x, 22)              .side(0b10)[3]  # Set clock
         label("read_bit")
         in_(pins, 1)            .side(0b00)     # shift in one bit
         jmp(x_dec, "read_bit")  .side(0b10)     # and go for another bit, which
         in_(pins, 1)            .side(0b00)     # get the last bit
                                                 # will be pushed automatically
-        jmp(y_dec,"wait_high")  .side(0b00)     
+        jmp(y_dec,"wait_high")  .side(0b00)
         label ("end")
         pull()                  .side(0b00)     # get the command to be sent
         set(x, 7)               .side(0b00)     # 8 bits to be sent
@@ -227,13 +228,13 @@ class ADS1256:
         jmp(x_dec, "write_bit") .side(0b00)[1]
         push()                  .side(0b00)[3]  # Tell it's finished, and wait 1 µs
                                                 # CS will be set inactive after wrap to line 1
-                                                     
+
     def transfer_cmd(self, out_data, in_bytes, result_type=0):
         self.ads1256_sm_cmd.restart()
+        self.ads1256_sm_cmd.active(1)       # start the transfer
         # set the arguments for data sizes
         self.ads1256_sm_cmd.put(0 if out_data is None else (len(out_data) * 8) << 24)
         self.ads1256_sm_cmd.put((in_bytes * 8) << 24)
-        self.ads1256_sm_cmd.active(1)       # start the transfer
         if out_data is not None:
             for value in out_data:
                self.ads1256_sm_cmd.put(value << 24)
@@ -310,13 +311,14 @@ class ADS1256:
             # now get the bulk of data
             self.buffer = buffer
             self.ads1256_sm_data.restart()
-            self.ads1256_sm_data.put(len(buffer))
-            self.ads1256_sm_data.put(CMD_SDATAC << 24)
+            self.ads1256_sm_data.active(1)
             self.data_acquired = False
             self.pio_dma.config(read=self.ads1256_sm_data, write=buffer, count=len(buffer), ctrl=self.pio_ctrl)
             self.pio_dma.irq(handler=self.__irq_dma_finished, hard=False)
             self.pio_dma.active(True)
-            self.ads1256_sm_data.active(1)  # An go off
+            # start the SM by pushing the requested data
+            self.ads1256_sm_data.put(len(buffer))
+            self.ads1256_sm_data.put(CMD_SDATAC << 24)
             return len(buffer)
 
     @micropython.native
@@ -387,7 +389,7 @@ class ADS1256:
             if channel == self.previous_channel:
                 self.previous_channel = None
         else:
-            if channel in self.channel_table.keys(): 
+            if channel in self.channel_table.keys():
                 config = self.channel_table[channel]
                 return "channel({}, ainp={}, ainn={}, gain={}, rate={})".format(
                     channel, config[0] >> 4, config[0] & 0x0f,
