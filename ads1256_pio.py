@@ -105,7 +105,8 @@ class ADS1256:
 
         self.channel_table = { }
         # create a single default entry.
-        self.statemachine = statemachine & 0b0110   # force to 0, 2, 4, 6
+        self.statemachine = statemachine & 0b1110   # force to an even number
+        pio = self.statemachine // 4
 
         # set up DMA
         self.pio_dma = rp2.DMA()
@@ -114,7 +115,7 @@ class ADS1256:
             inc_read=False,
             inc_write=True,
             ring_size = 0,  # no wrapping
-            treq_sel = self.statemachine * 2 + 4 + 1,  # 4-7 or 12-15
+            treq_sel = pio * 8 + (self.statemachine % 4) + 4 + 1, # 5, 7, 13, 15, 21, 23
             irq_quiet = False, # generate an IRQ
             bswap = False   # Do not swap bytes (?)
         )
