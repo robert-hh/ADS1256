@@ -105,7 +105,8 @@ class ADS1256:
 
         self.channel_table = { }
         # create a single default entry.
-        self.statemachine = statemachine & 0b0110   # force to 0, 2, 4, 6
+        self.statemachine = statemachine & 0b1110   # force to an even number
+        pio = self.statemachine // 4
 
         # set up DMA
         self.pio_dma = rp2.DMA()
@@ -114,9 +115,9 @@ class ADS1256:
             inc_read=False,
             inc_write=True,
             ring_size = 0,  # no wrapping
-            treq_sel = self.statemachine * 2 + 4 + 1,  # 4-7 or 12-15
+            treq_sel = pio * 8 + (self.statemachine % 4) + 4 + 1, # 5, 7, 13, 15, 21, 23
             irq_quiet = False, # generate an IRQ
-            bswap = False   # Do not swap bytes (?)
+            bswap = False   # Do not swap bytes
         )
 
         self.ads1256_sm_cmd = rp2.StateMachine(self.statemachine, self.ads1256_asm_cmd,
@@ -174,11 +175,11 @@ class ADS1256:
 # Now read the data
         label("read_din")
         jmp(not_y, "end")       .side(0b00)[7]   # test for data to read
-                                                 # and wait 8 clock cycles
+                                                 # and wait 8 SM clock cycles
         nop()                   .side(0b00)[7]   # Wait more clock cycles before read
         jmp("read_loop_dec")    .side(0b00)[7]   # Wait more clock cycles before read
                                                  # Total wait time must be 6µs at least
-                                                 # Is now 6.76 µs
+                                                 # Is now 6.75 µs
         label("read_bit")
         nop()                   .side(0b10)[1]   # Just set clock high
         in_(pins, 1)            .side(0b00)      # shift in one bit

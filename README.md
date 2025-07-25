@@ -47,7 +47,9 @@ connected to DIN of the ADS1256.
 it does not have to be SPI pins. Only cs and sck must be at consecutive numbers,
 with cs being the lower number, like GPIO13 for cs and GPIO14 for sck
 
-statemachine tells the number of the first statmachine. The driver uses two statemachines with consecutive ids. Both fit into a single PIO.  
+statemachine tells the number of the first statmachine. The supplied number is masked
+to an even value. The driver uses two statemachines with consecutive ids.
+Both fit into a single PIO.  
 
 When calling the constructor, a default channel 0 will be defined with AIN0 and AINCOM as inputs and
 the gain and rate set as optional parameters. The ADS1256 will be configured with these settings.
@@ -61,10 +63,10 @@ Define or change a logical channel used to read the data. This channel is not id
 the ADC input pins. It defines the configuration of input pins, gain and sampling rate.
 
 - id: A token used to identify the channel. It can be anything that can be used as key to a dictionary, e.g. a number or a string.
-- ainp: The positive input of the channel. Valid values are 0-7 for ADS1256 and 0-1 for ADS1255 or 8
-for the AINCOM signal.
-- ainn: The negative input of the channel. Valid values are 0-7 for ADS1256 and 0-1 for ADS1255 or 8
-for the AINCOM signal.
+- ainp: The positive input of the channel. Valid values are 0-7 for ADS1256 and
+0-1 for ADS1255 or 8 for the AINCOM signal.
+- ainn: The negative input of the channel. Valid values are 0-7 for ADS1256 and
+0-1 for ADS1255 or 8 for the AINCOM signal.
 - gain: The gain set for the channel.
 - rate: The sampling rate of the channel.
 
