@@ -88,6 +88,9 @@ class ADS1256:
     NUM_INPUTS = 8
     SELFCAL_GAIN = const(1)
     SELFCAL_OFFSET = const(2)
+    IN = 1
+    OUT = 0
+    CLK = 2
 
     def __init__(self, spi, cs, drdy, gain=1, rate=1000):
         self.spi = spi
@@ -112,6 +115,9 @@ class ADS1256:
         self.channel(0, 0, AINCOM, gain, rate)
         # Wait a moment after reset
         time.sleep_ms(1)
+        # Disable the clock output
+        self.write_reg(REG_ADCON, 0)
+        # Run an initial configuration with for the default channel
         self.channel_setup(0)
 
     def __call__(self):
@@ -245,12 +251,16 @@ class ADS1256:
         if channel not in self.channel_table.keys():
             raise ValueError("channel not defined")
         # set the mux, gain and rate in one transfer
-        config_new = self.channel_table[channel]
+        config_new = self.channel_table[channel][:]
+        # retain the CLK out setting
+        adcon = self.read_reg(REG_ADCON)[0] & 0b11111000
+        config_new[1] |= adcon
         self.write_reg(REG_MUX, config_new)
         # Check the need for calibration
         if self.previous_channel is not None:
             config_old = self.channel_table[self.previous_channel]
-            cal_mode = (config_new[1] != config_old[1]) | ((config_new[2] != config_old[2]) << 1)
+            # Just compare the gain setting
+            cal_mode = ((config_new[1] & 0b111) != config_old[1]) | ((config_new[2] != config_old[2]) << 1)
         else:
             # The set-up after reset may not match the first used configuration,
             # so do a full calibration.
@@ -325,6 +335,33 @@ class ADS1256:
         self.cs(1)
         # Wait for the calibration to finish
         self._wait_for_drdy()
+
+    def io_init(self, id, mode=1, div=1):
+        # get the gpio_crtl register and clear the DIR bit
+        gpio_ctrl = self.read_reg(REG_IO)[0] & ~(1 << (id +  4))
+        # get the ADCON register and clear the clock setting,
+        adcon = self.read_reg(REG_ADCON)[0] & 0b10011111
+        # set the direction
+        gpio_ctrl |= (mode & 1) << (id + 4)
+        # write adcon back.
+        self.write_reg(REG_IO, gpio_ctrl)
+        # check for CLK settings. Reset it if needed
+        if id == 0:
+            if mode == ADS1256.CLK:
+                # map div = 4 to a value of 3
+                if div > 3:
+                    div = 3
+                adcon |= div << 5
+            self.write_reg(REG_ADCON, adcon)
+
+    def io(self, id, value=None):
+        gpio_ctrl = self.read_reg(REG_IO)[0]
+        if value is None:
+            # read the value
+            return 1 if gpio_ctrl & (1 << id) else 0
+        else:
+            gpio_ctrl = (gpio_ctrl & ~(1 << id)) | (value << id)
+            self.write_reg(REG_IO, gpio_ctrl)
 
 
 class ADS1255(ADS1256):

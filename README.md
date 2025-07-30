@@ -128,6 +128,19 @@ is provided by number.
 
 Perform a single read using the previously used channel.
 
+### ads1256.io_init(pin, mode=IN | OUT | CLK [, div = 1 | 2 | 4])
+
+Set up one of the four digital outputs. `pin` is the output number in the range 0-3.
+`mode` define the pin mode, which either 0 for ouput, 1 for input and 2 for board clock
+output. The default is 1 for input. The CLK mode applies to pin 0 only. 'div' sets the divider for the clock, which is
+either 1, 2 or 4. The default is 1. The div setting is applied only to pin 0.
+
+### ads1256.io(pin [, value])
+
+Read the respective pin or set it's value, if the argument is supplied. Setting a pin
+only applied to pins in output mode. Setting a pin value in input mode is ignored.
+
+
 Other methods exist but are preferred for internal use.
 
 ## Constants
@@ -227,3 +240,15 @@ with the respective class name ADS1256 or ADS1255 or instance name.
         idle()
     print(data)
 
+## Example for digital IO
+
+    # use pin 2 as input
+    ads1256.io_init(2, mode=ADS1256.IN)
+    value = ads1256.io(2)
+
+    # use pin 3 as output
+    ads1256.io_init(3, mode=ADS1256.OUT)
+    ads1256.io(3, 1)
+
+    # enable the board clock/4 output at pin 0
+    ads1256.io_init(0, mode=ADS1256.CLK, div=4)
