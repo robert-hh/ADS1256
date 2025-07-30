@@ -434,6 +434,10 @@ class ADS1256:
         self.write_cmd(CMD_WAKEUP)
 
     def io_init(self, id, mode=1, div=1):
+        assert 0 <= id <= 3, "id not in range 0-3"
+        assert mode in (ADS1256.IN, ADS1256.OUT, ADS1256.CLK), "invalid mode"
+        assert mode != ADS1256.CLK or div in (1, 2, 4), "invalid div"
+
         # get the gpio_crtl register and clear the DIR bit
         gpio_ctrl = self.read_reg(REG_IO)[0] & ~(1 << (id +  4))
         # get the ADCON register and clear the clock setting,
@@ -446,17 +450,19 @@ class ADS1256:
         if id == 0:
             if mode == ADS1256.CLK:
                 # map div = 4 to a value of 3
-                if div > 3:
+                if div == 4:
                     div = 3
                 adcon |= div << 5
             self.write_reg(REG_ADCON, adcon)
 
     def io(self, id, value=None):
+        self._check_id_(id)
         gpio_ctrl = self.read_reg(REG_IO)[0]
         if value is None:
             # read the value
             return 1 if gpio_ctrl & (1 << id) else 0
         else:
+            value = 1 if value != 0 else 0
             gpio_ctrl = (gpio_ctrl & ~(1 << id)) | (value << id)
             self.write_reg(REG_IO, gpio_ctrl)
 

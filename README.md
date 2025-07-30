@@ -131,8 +131,9 @@ Perform a single read using the previously used channel.
 ### ads1256.io_init(pin, mode=IN | OUT | CLK [, div = 1 | 2 | 4])
 
 Set up one of the four digital outputs. `pin` is the output number in the range 0-3.
-`mode` define the pin mode, which either 0 for ouput, 1 for input and 2 for board clock
-output. The default is 1 for input. The CLK mode applies to pin 0 only. 'div' sets the divider for the clock, which is
+`mode` defines the pin mode, which either 0 for output, 1 for input and 2
+for board clock output. The default is 1 for input. The CLK mode applies
+to pin 0 only. 'div' sets the divider for the clock, which is
 either 1, 2 or 4. The default is 1. The div setting is applied only to pin 0.
 
 ### ads1256.io(pin [, value])
