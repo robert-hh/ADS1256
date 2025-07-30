@@ -128,18 +128,18 @@ is provided by number.
 
 Perform a single read using the previously used channel.
 
-### ads1256.io_init(pin, mode=IN | OUT | CLK [, div = 1 | 2 | 4])
+### dig_pin = ads1256.io(pin, mode=IN | OUT | CLK [, div = 1 | 2 | 4])
 
-Set up one of the four digital outputs. `pin` is the output number in the range 0-3.
-`mode` defines the pin mode, which either 0 for output, 1 for input and 2
-for board clock output. The default is 1 for input. The CLK mode applies
-to pin 0 only. 'div' sets the divider for the clock, which is
-either 1, 2 or 4. The default is 1. The div setting is applied only to pin 0.
+Create an IO object which represent one of the four digital outputs. 
+`pin` is the digital output number in the range 0-3.
+`mode` defines the pin mode, which either 0 for output, 1 for input and 2 for board clock
+output. The default is 1 for input. The CLK mode applies to pin 0 only.
+'div' sets the divider for the clock, which is either 1, 2 or 4.
+The default is 1. The div setting is applied only to pin 0 and ignored
+for the other pin.
 
-### ads1256.io(pin [, value])
-
-Read the respective pin or set it's value, if the argument is supplied. Setting a pin
-only applied to pins in output mode. Setting a pin value in input mode is ignored.
+The returned object can be used to read the pin value or to set it. `dig_pin()`
+returns the pin value, `dig_pin(value)` sets the pin output value.
 
 
 Other methods exist but are preferred for internal use.
@@ -244,12 +244,15 @@ with the respective class name ADS1256 or ADS1255 or instance name.
 ## Example for digital IO
 
     # use pin 2 as input
-    ads1256.io_init(2, mode=ADS1256.IN)
-    value = ads1256.io(2)
+    p2 = ads1256.io(2, mode=ADS1256.IN)
+    value = p2()
 
     # use pin 3 as output
-    ads1256.io_init(3, mode=ADS1256.OUT)
-    ads1256.io(3, 1)
+    p3 = ads1256.io(3, mode=ADS1256.OUT)
+    p3(1)
 
     # enable the board clock/4 output at pin 0
-    ads1256.io_init(0, mode=ADS1256.CLK, div=4)
+    p0 = ads1256.io(0, mode=ADS1256.CLK, div=4)
+
+    # Print the pin object properties:
+    print(p2)

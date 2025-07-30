@@ -86,6 +86,7 @@ class ADS1256:
 
     AINCOM = const(8)
     NUM_INPUTS = 8
+    NUM_GPIO = 4
     SELFCAL_GAIN = const(1)
     SELFCAL_OFFSET = const(2)
     IN = 1
@@ -302,7 +303,7 @@ class ADS1256:
             if channel == self.previous_channel:
                 self.previous_channel = None
         else:
-            if channel in self.channel_table.keys(): 
+            if channel in self.channel_table.keys():
                 config = self.channel_table[channel]
                 return "channel({}, ainp={}, ainn={}, gain={}, rate={})".format(
                     channel, config[0] >> 4, config[0] & 0x0f,
@@ -336,40 +337,59 @@ class ADS1256:
         # Wait for the calibration to finish
         self._wait_for_drdy()
 
-    def io_init(self, id, mode=1, div=1):
-        assert 0 <= id <= 3, "id not in range 0-3"
-        assert mode in (ADS1256.IN, ADS1256.OUT, ADS1256.CLK), "invalid mode"
-        assert mode != ADS1256.CLK or div in (1, 2, 4), "invalid div"
+    # Just a tiny wrapper providing the matching ADS1256 instance arg.
+    def io(self, id, mode=1, div=1):
+        return self.IO(self, id, mode, div)
 
-        # get the gpio_crtl register and clear the DIR bit
-        gpio_ctrl = self.read_reg(REG_IO)[0] & ~(1 << (id +  4))
-        # get the ADCON register and clear the clock setting,
-        adcon = self.read_reg(REG_ADCON)[0] & 0b10011111
-        # set the direction
-        gpio_ctrl |= (mode & 1) << (id + 4)
-        # write adcon back.
-        self.write_reg(REG_IO, gpio_ctrl)
-        # check for CLK settings. Reset it if needed
-        if id == 0:
-            if mode == ADS1256.CLK:
-                # map div = 4 to a value of 3
-                if div == 4:
-                    div = 3
-                adcon |= div << 5
-            self.write_reg(REG_ADCON, adcon)
+    class IO:
+        def __init__(self, ads, id, mode, div):
+            # check the arguments
+            assert 0 <= id < ADS1256.NUM_GPIO, "invalid id"
+            assert mode in (ADS1256.OUT, ADS1256.IN, ADS1256.CLK), "invalid mode"
+            assert mode != ADS1256.CLK or div in (1, 2, 4), "invalid div"
 
-    def io(self, id, value=None):
-        assert 0 <= id <= 3, "id not in range 0-3"
-        gpio_ctrl = self.read_reg(REG_IO)[0]
-        if value is None:
-            # read the value
-            return 1 if gpio_ctrl & (1 << id) else 0
-        else:
-            value = 1 if value != 0 else 0
-            gpio_ctrl = (gpio_ctrl & ~(1 << id)) | (value << id)
-            self.write_reg(REG_IO, gpio_ctrl)
+            # store the arguments in the object for later use
+            self.ads = ads
+            self.id = id
+            self.mode = mode
+            self.div = div
+
+            # get the gpio_ctrl register and clear the DIR bit
+            gpio_ctrl = ads.read_reg(REG_IO)[0] & ~(1 << (id + 4))
+            # set the direction
+            gpio_ctrl |= (mode & 1) << (id + 4)
+            # write gpio_ctrl back.
+            ads.write_reg(REG_IO, gpio_ctrl)
+
+            # check for CLK settings. Reset it if needed
+            if id == 0:
+                # get the ADCON register and clear the clock setting,
+                adcon = ads.read_reg(REG_ADCON)[0] & 0b10011111
+                if mode == ADS1256.CLK:
+                    if div == 4:
+                        div = 3
+                    adcon |= div << 5
+                ads.write_reg(REG_ADCON, adcon)
+
+        def __call__(self, value=None):
+            gpio_ctrl = self.ads.read_reg(REG_IO)[0]
+            if value is None:
+                # read the value
+                return (gpio_ctrl >> self.id) & 1
+            else:
+                if value != 0:
+                    gpio_ctrl |= (1 << self.id)
+                else:
+                    gpio_ctrl &= ~(1 << self.id)
+                self.ads.write_reg(REG_IO, gpio_ctrl)
+
+        def __repr__(self):
+            return "io({}, mode={}.{}{})".format(self.id, self.ads.__qualname__,
+                ("OUT", "IN", "CLK")[self.mode],
+                ", div={}".format(self.div) if self.mode == ADS1256.CLK else "")
 
 
 class ADS1255(ADS1256):
 
     NUM_INPUTS = 2
+    NUM_GPIO = 2
