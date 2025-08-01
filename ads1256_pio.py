@@ -298,7 +298,7 @@ class ADS1256:
         self.buffer_1[0] = cmd
         self.transfer_cmd(self.buffer_1, 0)
 
-    # read a single value or a set of values from a channel, which
+    # Read a single value or a set of values from a channel, which
     # has to be defined using the channel() method.
     def read(self, channel, buffer=None):
         if channel != self.previous_channel:
@@ -331,13 +331,13 @@ class ADS1256:
 
     @micropython.native
     def __irq_dma_finished(self, sm):
-        # Shift and sign check later when it's time to do so
         self.pio_dma.irq(handler=None)
         buffer = self.buffer
+        # Check the sign while waiting for the state machine to complete
         for i in range(len(buffer)):
             if buffer[i] > 0x7FFFFF:
                 buffer[i] -= 0x1000000
-        # wait for the DATA state machine to stop continous read
+        # wait for the DATA state machine to stop continuous read
         while self.ads1256_sm_data.rx_fifo() == 0:
             idle()
         self.ads1256_sm_data.get()
@@ -435,11 +435,11 @@ class ADS1256:
         self.write_cmd(CMD_WAKEUP)
 
     # Just a tiny wrapper providing the matching ADS1256 instance arg.
-    def io(self, id, mode=1, div=1):
-        return self.IO(self, id, mode, div)
+    def gpio(self, id, mode=1, div=1):
+        return self.GPIO(self, id, mode, div)
 
-    class IO:
-        def __init__(self, ads, id, mode, div):
+    class GPIO:
+        def __init__(self, ads, id, mode=1, div=1):
             # check the arguments
             assert 0 <= id < ADS1256.NUM_GPIO, "invalid id"
             assert mode in (ADS1256.OUT, ADS1256.IN, ADS1256.CLK), "invalid mode"
@@ -481,7 +481,7 @@ class ADS1256:
                 self.ads.write_reg(REG_IO, gpio_ctrl)
 
         def __repr__(self):
-            return "io({}, mode={}.{}{})".format(self.id, self.ads.__qualname__,
+            return "gpio({}, mode={}.{}{})".format(self.id, self.ads.__qualname__,
                 ("OUT", "IN", "CLK")[self.mode],
                 ", div={}".format(self.div) if self.mode == ADS1256.CLK else "")
 
