@@ -122,15 +122,15 @@ an object with buffer protocol.
 ### ads1256.read_reg(reg, number=1)
 
 Return the content of the register(s) starting at reg. The number of registers
-is provided by number.
+is provided by number. The PIO version allows only number <= 4.
 
 ### ads1256()
 
 Perform a single read using the previously used channel.
 
-### dig_pin = ads1256.io(pin, mode=IN | OUT | CLK [, div = 1 | 2 | 4])
+### dig_pin = ads1256.gpio(pin, mode=IN | OUT | CLK [, div = 1 | 2 | 4])
 
-Create an IO object which represent one of the four digital outputs. 
+Create a GPIO object which represent one of the four digital outputs. 
 `pin` is the digital output number in the range 0-3.
 `mode` defines the pin mode, which either 0 for output, 1 for input and 2 for board clock
 output. The default is 1 for input. The CLK mode applies to pin 0 only.
@@ -183,9 +183,13 @@ with the respective class name ADS1256 or ADS1255 or instance name.
 ### Others
 
     AINCOM = 8
-    NUM_INPUTS = 8 /ADS1256) or 2 (ADS1255)
+    NUM_INPUTS = 8 (ADS1256) or 2 (ADS1255)
+    NUM_GPIO = 4 (ADS1256) or 2 (ADS1255)
     SELFCAL_GAIN = 1
     SELFCAL_OFFSET = 2
+    OUT = 0
+    IN = 1
+    CLK = 2
 
 ## Example
 
@@ -241,18 +245,18 @@ with the respective class name ADS1256 or ADS1255 or instance name.
         idle()
     print(data)
 
-## Example for digital IO
+## Example for using the GPIO pins
 
-    # use pin 2 as input
-    p2 = ads1256.io(2, mode=ADS1256.IN)
+    # use GPIO pin 2 as input
+    p2 = ads1256.gpio(2, mode=ADS1256.IN)
     value = p2()
 
-    # use pin 3 as output
-    p3 = ads1256.io(3, mode=ADS1256.OUT)
+    # use GPIO pin 3 as output
+    p3 = ads1256.gpio(3, mode=ADS1256.OUT)
     p3(1)
 
-    # enable the board clock/4 output at pin 0
-    p0 = ads1256.io(0, mode=ADS1256.CLK, div=4)
+    # enable the board clock/4 output at GPIO pin 0
+    p0 = ads1256.gpio(0, mode=ADS1256.CLK, div=4)
 
-    # Print the pin object properties:
+    # Print the gpio object properties:
     print(p2)

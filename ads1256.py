@@ -217,15 +217,15 @@ class ADS1256:
             self.channel_setup(channel)
 
         if buffer is None:
+            self.buffer_1[0] = CMD_RDATA
             self._wait_for_drdy()
             # send the command and get the data
-            self.buffer_1[0] = CMD_RDATA
             self.cs(0)
             self.spi.write(self.buffer_1)
             # time.sleep_us(6)
             self.spi.readinto(self.buffer_3)
             self.cs(1)
-            result = self.buffer_3[0] << 16 | self.buffer_3[1] << 8 | self.buffer_3[2]
+            result = int.from_bytes(self.buffer_3)
             if result > 0x7FFFFF:
                 result -= 0x1000000
             return result
@@ -321,6 +321,7 @@ class ADS1256:
     def reset(self):
         self.write_cmd(CMD_RESET)
         self.previous_channel = None
+        self.data_acquired = False
 
     def calibration(self, mode=SELFCAL_GAIN | SELFCAL_OFFSET):
         if mode == SELFCAL_GAIN | SELFCAL_OFFSET:
@@ -338,11 +339,11 @@ class ADS1256:
         self._wait_for_drdy()
 
     # Just a tiny wrapper providing the matching ADS1256 instance arg.
-    def io(self, id, mode=1, div=1):
-        return self.IO(self, id, mode, div)
+    def gpio(self, id, mode=1, div=1):
+        return self.GPIO(self, id, mode, div)
 
-    class IO:
-        def __init__(self, ads, id, mode, div):
+    class GPIO:
+        def __init__(self, ads, id, mode=1, div=1):
             # check the arguments
             assert 0 <= id < ADS1256.NUM_GPIO, "invalid id"
             assert mode in (ADS1256.OUT, ADS1256.IN, ADS1256.CLK), "invalid mode"
@@ -384,7 +385,7 @@ class ADS1256:
                 self.ads.write_reg(REG_IO, gpio_ctrl)
 
         def __repr__(self):
-            return "io({}, mode={}.{}{})".format(self.id, self.ads.__qualname__,
+            return "gpio({}, mode={}.{}{})".format(self.id, self.ads.__qualname__,
                 ("OUT", "IN", "CLK")[self.mode],
                 ", div={}".format(self.div) if self.mode == ADS1256.CLK else "")
 
