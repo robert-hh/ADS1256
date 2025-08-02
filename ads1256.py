@@ -155,8 +155,11 @@ class ADS1256:
         self.buffer_2[1] = number - 1
         self.cs(0)
         self.spi.write(self.buffer_2)
-        time.sleep_us(6)
-        result = self.spi.read(number)
+        if number == 1:
+            self.spi.readinto(self.buffer_1, 1)
+            result = self.buffer_1[0]
+        else: 
+            result = self.spi.read(number)
         self.cs(1)
         return result
 
@@ -225,7 +228,7 @@ class ADS1256:
             # time.sleep_us(6)
             self.spi.readinto(self.buffer_3)
             self.cs(1)
-            result = int.from_bytes(self.buffer_3)
+            result = self.buffer_3[0] << 16 | self.buffer_3[1] << 8 | self.buffer_3[2]
             if result > 0x7FFFFF:
                 result -= 0x1000000
             return result
@@ -254,7 +257,7 @@ class ADS1256:
         # set the mux, gain and rate in one transfer
         config_new = self.channel_table[channel][:]
         # retain the CLK out setting
-        adcon = self.read_reg(REG_ADCON)[0] & 0b11111000
+        adcon = self.read_reg(REG_ADCON) & 0b11111000
         config_new[1] |= adcon
         self.write_reg(REG_MUX, config_new)
         # Check the need for calibration
@@ -356,7 +359,7 @@ class ADS1256:
             self.div = div
 
             # get the gpio_ctrl register and clear the DIR bit
-            gpio_ctrl = ads.read_reg(REG_IO)[0] & ~(1 << (id + 4))
+            gpio_ctrl = ads.read_reg(REG_IO) & ~(1 << (id + 4))
             # set the direction
             gpio_ctrl |= (mode & 1) << (id + 4)
             # write gpio_ctrl back.
@@ -365,7 +368,7 @@ class ADS1256:
             # check for CLK settings. Reset it if needed
             if id == 0:
                 # get the ADCON register and clear the clock setting,
-                adcon = ads.read_reg(REG_ADCON)[0] & 0b10011111
+                adcon = ads.read_reg(REG_ADCON) & 0b10011111
                 if mode == ADS1256.CLK:
                     if div == 4:
                         div = 3
@@ -373,7 +376,7 @@ class ADS1256:
                 ads.write_reg(REG_ADCON, adcon)
 
         def __call__(self, value=None):
-            gpio_ctrl = self.ads.read_reg(REG_IO)[0]
+            gpio_ctrl = self.ads.read_reg(REG_IO)
             if value is None:
                 # read the value
                 return (gpio_ctrl >> self.id) & 1

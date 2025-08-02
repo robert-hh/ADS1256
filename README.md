@@ -122,7 +122,8 @@ an object with buffer protocol.
 ### ads1256.read_reg(reg, number=1)
 
 Return the content of the register(s) starting at reg. The number of registers
-is provided by number. The PIO version allows only number <= 4.
+is provided by the argument `number`. For number == 1, a single int is returned as
+register value, otherwise a bytearray.
 
 ### ads1256()
 

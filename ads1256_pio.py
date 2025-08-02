@@ -149,8 +149,9 @@ class ADS1256:
         in_shiftdir=rp2.PIO.SHIFT_LEFT,
         out_shiftdir=rp2.PIO.SHIFT_LEFT,
         autopull=True,
-        autopush=False,
+        autopush=True,
         pull_thresh=8,
+        push_thresh=8,
         out_init=(rp2.PIO.OUT_LOW),
         set_init=(rp2.PIO.IN_LOW, rp2.PIO.IN_LOW),
         sideset_init=(rp2.PIO.OUT_HIGH,rp2.PIO.OUT_LOW) # cs=1, sck=0
@@ -255,19 +256,21 @@ class ADS1256:
             for _ in range(4):
                 self.ads1256_sm_cmd.exec("pull(noblock).side(0b01)")
             raise OSError("sensor timeout")
-        self.ads1256_sm_cmd.active(0)
-        result = self.ads1256_sm_cmd.get()  # wait for a result, may be discarded
         if in_bytes > 0:
-            if result_type == 1:  # return as number?
-                return result
+            if result_type == 1:
+                result = 0
+                for i in range(in_bytes):
+                    result = result * 256 + self.ads1256_sm_cmd.get()
             else:
-                data = bytearray(in_bytes)
-                for i in range(in_bytes - 1, -1, -1):
-                    data[i] = result & 0xff
-                    result >>= 8
-                return data
+                result = bytearray(in_bytes)
+                for i in range(in_bytes):
+                    result[i] = self.ads1256_sm_cmd.get()
         else:
-            return None
+            result = None
+        # get the sync signal and stop
+        self.ads1256_sm_cmd.get()
+        self.ads1256_sm_cmd.active(0)
+        return result
 
     # Write to the registers. data is either an object with buffer
     # protocol or for convenience a single number.
@@ -290,7 +293,9 @@ class ADS1256:
             raise ValueError("Invalid register")
         self.buffer_2[0] = CMD_RREG + reg
         self.buffer_2[1] = number - 1
-        return self.transfer_cmd(self.buffer_2, number)
+        # if read_reg is called with number=1, a single int is returned.
+        # otherwise it's a bytearray.
+        return self.transfer_cmd(self.buffer_2, number, number)
 
     def write_cmd(self, cmd):
         self.buffer_1[0] = cmd
@@ -349,7 +354,7 @@ class ADS1256:
         # set the mux, gain and rate in one transfer
         config_new = self.channel_table[channel][:]
         # retain the CLK out setting
-        adcon = self.read_reg(REG_ADCON)[0] & 0b11111000
+        adcon = self.read_reg(REG_ADCON) & 0b11111000
         config_new[1] |= adcon
         self.write_reg(REG_MUX, config_new)
         # Check the need for calibration
@@ -451,7 +456,7 @@ class ADS1256:
             self.div = div
 
             # get the gpio_ctrl register and clear the DIR bit
-            gpio_ctrl = ads.read_reg(REG_IO)[0] & ~(1 << (id + 4))
+            gpio_ctrl = ads.read_reg(REG_IO) & ~(1 << (id + 4))
             # set the direction
             gpio_ctrl |= (mode & 1) << (id + 4)
             # write gpio_ctrl back.
@@ -460,7 +465,7 @@ class ADS1256:
             # check for CLK settings. Reset it if needed
             if id == 0:
                 # get the ADCON register and clear the clock setting,
-                adcon = ads.read_reg(REG_ADCON)[0] & 0b10011111
+                adcon = ads.read_reg(REG_ADCON) & 0b10011111
                 if mode == ADS1256.CLK:
                     if div == 4:
                         div = 3
@@ -468,7 +473,7 @@ class ADS1256:
                 ads.write_reg(REG_ADCON, adcon)
 
         def __call__(self, value=None):
-            gpio_ctrl = self.ads.read_reg(REG_IO)[0]
+            gpio_ctrl = self.ads.read_reg(REG_IO)
             if value is None:
                 # read the value
                 return (gpio_ctrl >> self.id) & 1
