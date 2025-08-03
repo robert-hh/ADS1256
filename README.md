@@ -92,9 +92,9 @@ is reconfigured before reading and re-calibrated, if needed.
 
 Request a self-calibration of the device. Argument values are:
 
-1 Calibrate the gain.  
-2 Calibrate the offset.  
-3 Calibrate gain and offset.  
+1: Calibrate the gain.  
+2: Calibrate the offset.  
+3: Calibrate gain and offset.  
 
 Other values are ignored.
 
@@ -124,6 +124,15 @@ an object with buffer protocol.
 Return the content of the register(s) starting at reg. The number of registers
 is provided by the argument `number`. For number == 1, a single int is returned as
 register value, otherwise a bytearray.
+
+### ads1256.sensor_detect(mode=0)
+
+Set the sensor detect current according to the data sheet. Values for mode are:
+
+0: Sensor Detect OFF  
+1: Sensor Detect Current = 0.5μA  
+2: Sensor Detect Current = 2μA  
+3: Sensor Detect Current = 10μA  
 
 ### ads1256()
 

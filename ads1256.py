@@ -326,6 +326,10 @@ class ADS1256:
         self.previous_channel = None
         self.data_acquired = False
 
+    def sensor_detect(self, mode=0):
+        self.write_reg(REG_ADCON,
+            (self.read_reg(REG_ADCON) & 0b11100111) | ((mode & 3) << 3))
+
     def calibration(self, mode=SELFCAL_GAIN | SELFCAL_OFFSET):
         if mode == SELFCAL_GAIN | SELFCAL_OFFSET:
             self.buffer_1[0] = CMD_SELFCAL

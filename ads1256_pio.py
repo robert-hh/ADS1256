@@ -273,7 +273,7 @@ class ADS1256:
         return result
 
     # Write to the registers. data is either an object with buffer
-    # protocol or for convenience a single number.
+    # protocol or for convenience a single int.
     def write_reg(self, reg, data):
         if reg > REG_FSC2:
             raise ValueError("Invalid register")
@@ -293,8 +293,8 @@ class ADS1256:
             raise ValueError("Invalid register")
         self.buffer_2[0] = CMD_RREG + reg
         self.buffer_2[1] = number - 1
-        # if read_reg is called with number=1, a single int is returned.
-        # otherwise it's a bytearray.
+        # If transfer_cmd() is called with number == 1, a single int
+        # is returned, otherwise it's a bytearray.
         return self.transfer_cmd(self.buffer_2, number, number)
 
     def write_cmd(self, cmd):
@@ -423,6 +423,10 @@ class ADS1256:
         self.write_cmd(CMD_RESET)
         self.previous_channel = None
         self.data_acquired = False
+
+    def sensor_detect(self, mode=0):
+        self.write_reg(REG_ADCON,
+            (self.read_reg(REG_ADCON) & 0b11100111) | ((mode & 3) << 3))
 
     def calibration(self, mode=SELFCAL_GAIN | SELFCAL_OFFSET):
         if mode == SELFCAL_GAIN | SELFCAL_OFFSET:
