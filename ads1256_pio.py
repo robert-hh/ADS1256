@@ -99,6 +99,7 @@ class ADS1256:
         self.buffer_1 = bytearray(1)
         self.buffer_2 = bytearray(2)
         self.buffer_3 = bytearray(3)
+        self.cs = cs
 
         # The channel table is a list of logical channels with it's
         # configuration of inputs, gain and rate. If needed,
@@ -127,7 +128,7 @@ class ADS1256:
             freq=4_000_000, set_base=drdy, in_base=din, out_base=dout, sideset_base=cs, jmp_pin=drdy)
 
         self.ads1256_sm_data = rp2.StateMachine(self.statemachine + 1, self.ads1256_asm_data,
-            freq=3_500_000, set_base=drdy, in_base=din, out_base=dout, sideset_base=cs, jmp_pin=drdy)
+            freq=3_000_000, set_base=drdy, in_base=din, out_base=dout, sideset_base=cs, jmp_pin=drdy)
 
         self.reset()
         self.channel(0, 0, AINCOM, gain, rate)
@@ -219,22 +220,22 @@ class ADS1256:
 # Wait for a low level = DRDY signal
         label("wait_low")
         jmp(pin, "wait_low")    .side(0b01)
-        jmp(not_y, "end")       .side(0b00)
+        jmp(not_y, "end")       .side(0b00)[7]
 # now read the data, 24 bit
-        set(x, 22)              .side(0b10)[3]  # Set clock
+        set(x, 22)              .side(0b10)     # Set clock
         label("read_bit")
         in_(pins, 1)            .side(0b00)     # shift in one bit
         jmp(x_dec, "read_bit")  .side(0b10)     # and go for another bit, which
         in_(pins, 1)            .side(0b00)     # get the last bit
                                                 # will be pushed automatically
-        jmp(y_dec,"wait_high")  .side(0b00)
+        jmp(y_dec,"wait_high")  .side(0b00)[7]
         label ("end")
         pull()                  .side(0b00)     # get the command to be sent
         set(x, 7)               .side(0b00)     # 8 bits to be sent
         label("write_bit")
         out(pins, 1)            .side(0b10)[1]  # Write SDATAC
         jmp(x_dec, "write_bit") .side(0b00)[1]
-        push()                  .side(0b00)[3]  # Tell it's finished, and wait 1 µs
+        push()                  .side(0b00)[7]  # Tell it's finished, and wait 1 µs
                                                 # CS will be set inactive after wrap to line 1
 
     def transfer_cmd(self, out_data, in_bytes, result_type=0):
