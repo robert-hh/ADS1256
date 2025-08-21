@@ -136,6 +136,8 @@ class ADS1256:
         time.sleep_ms(1)
         # Disable the clock output
         self.write_reg(REG_ADCON, 0)
+        # Enable auto-config
+        self.write_reg(REG_STATUS, 0x04)
         # Run an initial configuration with for the default channel
         self.channel_setup(0)
 
@@ -358,16 +360,6 @@ class ADS1256:
         adcon = self.read_reg(REG_ADCON) & 0b11111000
         config_new[1] |= adcon
         self.write_reg(REG_MUX, config_new)
-        # Check the need for calibration
-        if self.previous_channel is not None:
-            config_old = self.channel_table[self.previous_channel]
-            # Just compare the gain setting
-            cal_mode = ((config_new[1] & 0b111) != config_old[1]) | ((config_new[2] != config_old[2]) << 1)
-        else:
-            # The set-up after reset may not match the first used configuration,
-            # so do a full calibration.
-            cal_mode = SELFCAL_GAIN | SELFCAL_OFFSET
-        self.calibration(cal_mode)
         self.previous_channel = channel
         # wait for the actual cycle to finish
         # Use the wakeup command for that purpose

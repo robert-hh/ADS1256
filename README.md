@@ -201,7 +201,48 @@ with the respective class name ADS1256 or ADS1255 or instance name.
     IN = 1
     CLK = 2
 
-## Example
+## Notes
+
+### Input Impedance
+
+The ADS1256 is set up not to use the ADC input buffer. Then, the differential input impedance is
+pretty low like about 150/gain kOhm at gain 1-32 and about 4,7kOhm at a gain of 64. In addition
+with series resistors at a board that may lead to read() returning lower values that expected.
+Enabling the ADC input buffer increases the input impedance to values between 10MOhm and 80MOhm,
+depending on the data rate, but at the cost of reduced input voltage range. The ADC input buffer
+can be enabled by setting bit 1 of the status register. Since auto-config is enabled,
+it has to be a non-destructive write, like
+
+    ads1256.write_reg(ads1256.REG_STATUS, ads1256.read_reg(ads1256.REG_STATUS) | 0x02)
+
+
+### Comparison ADS1256 vs. HX711 vs. CS1237
+
+Due to the supported gain of 64 the ADS1256 could be used in differential mode
+as load cell digitizer, supporting up to 4 load cells at the same time.
+The sensibility is a little bit lower, but the noise figures are way better. The
+table below show the deviation from average for different settings. The
+deviation slots are exclusive, e.g. the line with 0.0010% does *not* include
+the numbers for 0.0003%. At rate 10, the ADS1256 performs much better.
+At rate 1000 the ADS1256 numbers are similar to the HX711/CS1237 at a rate of 10.
+The HX711 and CS1237 have similar noise figures.
+
+                    CS1237      HX711     ADS1256    ADS1256    ADS1256  
+                    Gain=64    Gain=64    Gain=64    Gain=64    Gain=64  
+                    Rate=10    Rate=10    Rate=10   Rate=1000 Rate=30000 
+    Deviation from
+       Average                                            
+       0,0003 %      0,085      0,105      0,664      0,123      0,039   
+       0,0010 %      0,242      0,203      0,333      0,242      0,084   
+       0,0030 %      0,485      0,421      0,003      0,512      0,199   
+       0,0100 %      0,188      0,27         0        0,123      0,527   
+       0,0300 %        0        0,001        0          0        0,151   
+       0,1000 %        0          0          0          0          0     
+        Beyond         0          0          0          0          0     
+
+
+
+## Examples
 
     # Example for using the driver with a RP2 device
     # SPI at GPIO12 - GPIO15, DRDY at GPIO11
