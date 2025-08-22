@@ -113,13 +113,11 @@ class ADS1256:
         self.reset()
         self.channel_table = { }
         # create a single default entry.
-        self.channel(0, 0, AINCOM, gain, rate)
+        self.channel(0, 0, AINCOM, gain, rate, False)
         # Wait a moment after reset
         time.sleep_ms(1)
         # Disable the clock output
         self.write_reg(REG_ADCON, 0)
-        # Enable auto-config
-        self.write_reg(REG_STATUS, 0x04)
         # Run an initial configuration with for the default channel
         self.channel_setup(0)
 
@@ -257,18 +255,19 @@ class ADS1256:
         if channel not in self.channel_table.keys():
             raise ValueError("channel not defined")
         # set the mux, gain and rate in one transfer
-        config_new = self.channel_table[channel][:]
+        config, buffer = self.channel_table[channel]
+        config_new = config[:]
         # retain the CLK out setting
         adcon = self.read_reg(REG_ADCON) & 0b11111000
         config_new[1] |= adcon
         self.write_reg(REG_MUX, config_new)
-        self.previous_channel = channel
         # wait for the actual cycle to finish
-        # Use the wakeup command for that purpose
-        self.write_cmd(CMD_WAKEUP)
+        self._wait_for_drdy()
+        self.write_reg(REG_STATUS, 0x06 if buffer else 0x04)  # always set the autocal flag
+        self.previous_channel = channel
 
     # define or redefine a logical channel
-    def channel(self, channel, ainp=None, ainn=AINCOM, gain=None, rate=None):
+    def channel(self, channel, ainp=None, ainn=AINCOM, gain=None, rate=None, buffered=None):
         if ainp is not None:
             # check the argument values
             if not (ainp == AINCOM or 0 <= ainp < self.NUM_INPUTS):
@@ -282,29 +281,33 @@ class ADS1256:
 
             if channel in self.channel_table.keys():
                 # redefine a channel
-                config = self.channel_table[channel]
+                config, buffer = self.channel_table[channel]
                 if gain is not None:
                     config[1] = self._gain[gain]
                 if rate is not None:
                     config[2] = self._rate[rate]
+                if buffered is not None:
+                    buffer = True if buffered else False
             else:
                 # define a new channel.
                 config = bytearray(3)
                 config[1] = self._gain[1] if gain is None else self._gain[gain]
                 config[2] = self._rate[1000] if rate is None else self._rate[rate]
+                buffer = False
             # the input numbers are always set and must not be None
             config[0] = (ainp << 4) | ainn
-            self.channel_table[channel] = config
+            self.channel_table[channel] = config, buffer
             # force re-configuration if the current channel is (re-)configured,
             if channel == self.previous_channel:
                 self.previous_channel = None
         else:
             if channel in self.channel_table.keys():
-                config = self.channel_table[channel]
-                return "channel({}, ainp={}, ainn={}, gain={}, rate={})".format(
+                config, buffered = self.channel_table[channel]
+                return "channel({}, ainp={}, ainn={}, gain={}, rate={}, buffered={}".format(
                     channel, config[0] >> 4, config[0] & 0x0f,
                     {value: key for key, value in self._gain.items()}[config[1]],
-                    {value: key for key, value in self._rate.items()}[config[2]])
+                    {value: key for key, value in self._rate.items()}[config[2]],
+                    buffered)
             else:
                 raise ValueError("channel not defined")
 

@@ -36,7 +36,7 @@ the gain and rate set as optional parameters. The ADS1256 will be configured wit
 
 ## Constructor with ads1256_pio.py
 
-### ads1256 = ADS1256(sck, din, dout, cs, drdy[, statemachine=0, gain=1, rate=1000])
+### ads1256 = ADS1256(sck, din, dout, cs, drdy[, statemachine=0, gain=1, rate=1000)
 ### ads1255 = ADS1255(sck, din, dout, cs, drdy[, statemachine=0, gain=1, rate=1000])
 
 This is the constructor to be used for the RP2 PIO implementation. The first five
@@ -48,38 +48,43 @@ it does not have to be SPI pins. Only cs and sck must be at consecutive numbers,
 with cs being the lower number, like GPIO13 for cs and GPIO14 for sck
 
 statemachine tells the number of the first statmachine. The supplied number is masked
-to an even value. The driver uses two statemachines with consecutive ids.
+to an even value. The driver uses two statemachines with consecutive id numbers.
 Both fit into a single PIO.  
 
-When calling the constructor, a default channel 0 will be defined with AIN0 and AINCOM as inputs and
-the gain and rate set as optional parameters. The ADS1256 will be configured with these settings.
+When calling the constructor, a default channel 0 will be defined with AIN0 and
+AINCOM as inputs and the gain and rate set as optional parameters.
+The ADS1256 will be configured with these settings.
 
 
 ## Methods
 
-### ads1256.channel(id [, ainp=None, ainn=8, gain=1, rate=1000])
+### ads1256.channel(id [, ainp=None, ainn=8, gain=1, rate=1000, buffered=False])
 
 Define or change a logical channel used to read the data. This channel is not identical to
 the ADC input pins. It defines the configuration of input pins, gain and sampling rate.
 
-- id: A token used to identify the channel. It can be anything that can be used as key to a dictionary, e.g. a number or a string.
+- id: A token used to identify the channel. It can be anything that can be used as
+  key to a dictionary, e.g. a number or a string.
 - ainp: The positive input of the channel. Valid values are 0-7 for ADS1256 and
 0-1 for ADS1255 or 8 for the AINCOM signal.
 - ainn: The negative input of the channel. Valid values are 0-7 for ADS1256 and
 0-1 for ADS1255 or 8 for the AINCOM signal.
 - gain: The gain set for the channel.
 - rate: The sampling rate of the channel.
+- buffered: Enable or disable input buffering, which increases the input
+  impedance to 10 - 80 MOhm depending on the sample rate at the cost of a
+  reduced input voltage range and increased power consumption.
 
 If just the id is supplied as argument, a string with the channel settings is returned.
 
 ### ads1256.read(channel [, buffer])
 
-Read and ADC value with the configuration set for the channel. If buffer is supplied,
+Read and ADC value with the configuration set for the channel. If a buffer is supplied,
 it will be filled with data in the read continuous mode until the buffer is filled.
-The buffer must be an array of array.array() type 'i' (4 byte quantities). The return value
-is the number of sampled values. The call will
+The buffer must be an array of array.array() type 'i' (4 byte signed quantities).
+The return value is the number of sampled values. The call will
 return immediately, while the data is collected. One can use the
-flag `data_acquired` of the add1256 object to test, whether the data
+flag `data_acquired` of the ads1256 object to test, whether the data
 acquisition is finished. The data in the buffer is **NOT** sign
 corrected and in the correct range until `data_acquired` is True.  
 
@@ -148,8 +153,13 @@ output. The default is 1 for input. The CLK mode applies to pin 0 only.
 The default is 1. The div setting is applied only to pin 0 and ignored
 for the other pin.
 
-The returned object can be used to read the pin value or to set it. `dig_pin()`
-returns the pin value, `dig_pin(value)` sets the pin output value.
+### dig_pin()
+
+Return the value of a digital pin.
+
+### dig_pin(value)
+
+Set a digital output pin to 0 or 1, as given by `value`.
 
 
 Other methods exist but are preferred for internal use.
